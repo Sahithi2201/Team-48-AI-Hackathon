@@ -1,0 +1,46 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper function to check authentication
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Complaints collection
+    // Read: open to authenticated users and public lookup for ticket tracking
+    // Create/Update: allow for complaint submissions and municipal workflow updates
+    match /complaints/{complaintId} {
+      allow read, write: if true;
+    }
+
+    // Users collection
+    match /users/{userId} {
+      allow read, write: if true;
+    }
+
+    // Departments collection
+    match /departments/{departmentId} {
+      allow read, write: if true;
+    }
+
+    // Officers collection
+    match /officers/{officerId} {
+      allow read, write: if true;
+    }
+
+    // Officer Work Updates collection
+    match /officer_work_updates/{updateId} {
+      allow read, write: if true;
+    }
+
+    // Assignment History collection
+    match /assignment_history/{historyId} {
+      allow read, write: if true;
+    }
+
+    // Timeline & Activity subcollections if used
+    match /complaints/{complaintId}/{document=**} {
+      allow read, write: if true;
+    }
+  }
+}
