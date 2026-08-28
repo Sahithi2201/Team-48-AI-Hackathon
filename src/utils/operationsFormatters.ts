@@ -143,79 +143,147 @@ export function getIncidentOperationalSummary(caseItem: CivicCase): IncidentOper
   const severity = getSeverityInfo(caseItem.priority, caseItem.isEscalated, caseItem.finalGovernmentRisk);
 
   let plainStatus = 'Submitted';
-  let progressPercent = 15;
+  let progressPercent = typeof caseItem.progress === 'number' && caseItem.progress > 0 ? caseItem.progress : 5;
   let currentStageName = 'Submitted';
   let currentAction = caseItem.currentAction || 'Complaint submitted to municipal queue.';
-  let nextAction = caseItem.nextAction || 'Verification and initial triage review by Government Officer.';
+  let nextAction = caseItem.nextAction || 'AI triage analysis and Government Officer review.';
 
-  const st = (caseItem.status || '').toUpperCase();
+  const st = (caseItem.status || '').toUpperCase().trim();
 
-  // 7-step standard lifecycle
+  // Full real-world lifecycle stages: Citizen -> Gov/AI -> Officer -> Officer Work -> Gov Approval -> Citizen
   const stages: LifecycleStage[] = [
-    { id: 's1', name: 'Submitted', status: 'completed', timestamp: caseItem.createdDate || caseItem.submittedAt, actor: caseItem.citizenName || 'Citizen' },
-    { id: 's2', name: 'Under Review', status: 'pending', actor: 'Municipal Desk' },
-    { id: 's3', name: 'Accepted', status: 'pending', actor: 'Government Officer' },
-    { id: 's4', name: 'Risk Assessed', status: 'pending', actor: 'Triage Desk' },
-    { id: 's5', name: 'Assigned', status: 'pending', actor: caseItem.assignedDepartment || 'Department' },
-    { id: 's6', name: 'Action In Progress', status: 'pending', actor: caseItem.assignedOfficerName || 'Field Squad' },
-    { id: 's7', name: 'Resolved', status: 'pending', actor: 'Audit Desk' }
+    { id: 's1', name: 'Citizen Submission', status: 'completed', timestamp: caseItem.createdDate || caseItem.submittedAt, actor: caseItem.citizenName || 'Citizen' },
+    { id: 's2', name: 'AI Triage & Analysis', status: 'pending', actor: 'CivicMind AI Swarm' },
+    { id: 's3', name: 'Government Acceptance', status: 'pending', actor: 'Government Command Desk' },
+    { id: 's4', name: 'Officer Assigned', status: 'pending', actor: caseItem.assignedDepartment || 'Department Dispatch' },
+    { id: 's5', name: 'Field Work In Progress', status: 'pending', actor: caseItem.assignedOfficerName || 'Field Squad' },
+    { id: 's6', name: 'Work Completed Review', status: 'pending', actor: 'Government Verification Desk' },
+    { id: 's7', name: 'Verified & Resolved', status: 'pending', actor: 'Municipal Operations' }
   ];
 
   if (st === 'SUBMITTED') {
-    plainStatus = 'Submitted — Awaiting Review';
-    progressPercent = 15;
-    currentStageName = 'Submitted';
+    plainStatus = 'Submitted — In Queue';
+    progressPercent = caseItem.progress ?? 5;
+    currentStageName = 'Citizen Submission';
     stages[0].status = 'completed';
     stages[1].status = 'current';
-  } else if (st === 'UNDER_REVIEW') {
-    plainStatus = 'Under Government Review';
-    progressPercent = 30;
-    currentStageName = 'Under Review';
+    currentAction = caseItem.currentAction || 'Complaint logged into municipal central registry.';
+    nextAction = caseItem.nextAction || 'AI multi-agent triage and classification.';
+  } else if (st === 'AI_PROCESSING') {
+    plainStatus = 'AI Analysis In Progress';
+    progressPercent = caseItem.progress ?? 10;
+    currentStageName = 'AI Triage';
+    stages[0].status = 'completed';
+    stages[1].status = 'current';
+    currentAction = caseItem.currentAction || 'Agentic AI evaluating severity, department routing, and duplicate risk.';
+    nextAction = caseItem.nextAction || 'Government review and validation of AI recommendation.';
+  } else if (st === 'AI_COMPLETED' || st === 'AI_ANALYSIS_COMPLETED' || st === 'UNDER_REVIEW') {
+    plainStatus = 'AI Triage Complete — Under Review';
+    progressPercent = caseItem.progress ?? 15;
+    currentStageName = 'Government Review';
     stages[0].status = 'completed';
     stages[1].status = 'completed';
     stages[2].status = 'current';
-  } else if (st === 'ACCEPTED') {
+    currentAction = caseItem.currentAction || 'AI triage complete. Awaiting Government review and acceptance.';
+    nextAction = caseItem.nextAction || 'Government desk acceptance and department routing.';
+  } else if (st === 'GOVERNMENT_ACCEPTED' || st === 'ACCEPTED' || st === 'RISK_ASSESSED') {
     plainStatus = 'Accepted by Government';
-    progressPercent = 45;
-    currentStageName = 'Accepted';
+    progressPercent = caseItem.progress ?? 25;
+    currentStageName = 'Government Accepted';
     stages[0].status = 'completed';
     stages[1].status = 'completed';
     stages[2].status = 'completed';
     stages[3].status = 'current';
-  } else if (st === 'RISK_ASSESSED') {
-    plainStatus = `Risk Assessed: ${caseItem.finalGovernmentRisk || 'Confirmed'}`;
-    progressPercent = 60;
-    currentStageName = 'Risk Assessed';
+    currentAction = caseItem.currentAction || 'Government accepted complaint. Proceeding to Officer Assignment.';
+    nextAction = caseItem.nextAction || 'Department officer allocation and field order issuance.';
+  } else if (st === 'OFFICER_ASSIGNED' || st === 'DEPARTMENT_ASSIGNED' || st === 'WAITING_FOR_OFFICER_ACCEPTANCE') {
+    plainStatus = `Assigned to ${caseItem.assignedOfficerName || caseItem.assignedDepartment || 'Officer'}`;
+    progressPercent = caseItem.progress ?? 30;
+    currentStageName = 'Officer Assigned';
     stages[0].status = 'completed';
     stages[1].status = 'completed';
     stages[2].status = 'completed';
     stages[3].status = 'completed';
     stages[4].status = 'current';
-  } else if (st === 'DEPARTMENT_ASSIGNED') {
-    plainStatus = `Assigned to ${caseItem.assignedDepartment}`;
-    progressPercent = 75;
-    currentStageName = 'Department Assigned';
+    currentAction = caseItem.currentAction || `Assigned to ${caseItem.assignedOfficerName || 'field officer'} (${caseItem.assignedDepartment}).`;
+    nextAction = caseItem.nextAction || 'Officer acknowledging work order and mobilizing squad.';
+  } else if (st === 'WORK_ACCEPTED' || st === 'ACTION_IN_PROGRESS' || st === 'IN_PROGRESS' || st === 'IN PROGRESS' || st === 'OPEN') {
+    plainStatus = 'Field Work In Progress';
+    progressPercent = caseItem.progress ?? 50;
+    currentStageName = 'Field Action';
+    stages[0].status = 'completed';
+    stages[1].status = 'completed';
+    stages[2].status = 'completed';
+    stages[3].status = 'completed';
+    stages[4].status = 'current';
+    currentAction = caseItem.currentAction || 'Field squad actively deployed on-site executing corrective action.';
+    nextAction = caseItem.nextAction || 'Field repairs completion and upload of proof photos.';
+  } else if (st === 'OFFICER_UPDATE') {
+    plainStatus = 'Field Squad Update Logged';
+    progressPercent = caseItem.progress ?? 65;
+    currentStageName = 'Field Progress';
+    stages[0].status = 'completed';
+    stages[1].status = 'completed';
+    stages[2].status = 'completed';
+    stages[3].status = 'completed';
+    stages[4].status = 'current';
+    currentAction = caseItem.currentAction || 'Officer provided intermediate field progress note.';
+    nextAction = caseItem.nextAction || 'Completion of physical repairs and final work report submission.';
+  } else if (st === 'BLOCKED' || st === 'BLOCKED / DELAYED') {
+    plainStatus = 'Field Action Blocked / Delayed';
+    progressPercent = caseItem.progress ?? 50;
+    currentStageName = 'Action Delayed';
+    stages[0].status = 'completed';
+    stages[1].status = 'completed';
+    stages[2].status = 'completed';
+    stages[3].status = 'completed';
+    stages[4].status = 'current';
+    currentAction = caseItem.currentAction || 'Work temporarily delayed due to site constraints or procurement.';
+    nextAction = caseItem.nextAction || 'Resolving obstruction to resume field operations.';
+  } else if (st === 'WORK_COMPLETED_REVIEW' || st === 'AWAITING_VERIFICATION' || st === 'AWAITING GOVERNMENT VERIFICATION' || st === 'PENDING_GOVERNMENT_APPROVAL') {
+    plainStatus = 'Work Completed — Awaiting Government Approval';
+    progressPercent = caseItem.progress ?? 80;
+    currentStageName = 'Work Completed Review';
     stages[0].status = 'completed';
     stages[1].status = 'completed';
     stages[2].status = 'completed';
     stages[3].status = 'completed';
     stages[4].status = 'completed';
     stages[5].status = 'current';
-  } else if (st === 'ACTION_IN_PROGRESS' || st === 'IN PROGRESS' || st === 'IN_PROGRESS' || st === 'OPEN') {
-    plainStatus = 'Action In Progress — Squad Active';
-    progressPercent = 85;
-    currentStageName = 'Action In Progress';
+    currentAction = caseItem.currentAction || 'Officer completed field repairs. Work submitted for Government inspection.';
+    nextAction = caseItem.nextAction || 'Government review and final resolution verification.';
+  } else if (st === 'GOVERNMENT_REVIEW') {
+    plainStatus = 'Government Reviewing Completed Work';
+    progressPercent = caseItem.progress ?? 90;
+    currentStageName = 'Government Review';
     stages[0].status = 'completed';
     stages[1].status = 'completed';
     stages[2].status = 'completed';
     stages[3].status = 'completed';
     stages[4].status = 'completed';
     stages[5].status = 'current';
-  } else if (st === 'RESOLVED') {
+    currentAction = caseItem.currentAction || 'Government desk inspecting field repair evidence and quality metrics.';
+    nextAction = caseItem.nextAction || 'Final sign-off and closure approval.';
+  } else if (st === 'GOVERNMENT_APPROVED') {
+    plainStatus = 'Government Approved — Final Verification';
+    progressPercent = caseItem.progress ?? 95;
+    currentStageName = 'Government Approved';
+    stages[0].status = 'completed';
+    stages[1].status = 'completed';
+    stages[2].status = 'completed';
+    stages[3].status = 'completed';
+    stages[4].status = 'completed';
+    stages[5].status = 'completed';
+    stages[6].status = 'current';
+    currentAction = caseItem.currentAction || 'Government verified and approved completed repair work.';
+    nextAction = caseItem.nextAction || 'Final case closure in municipal registry.';
+  } else if (st === 'AI_VERIFIED' || st === 'SOLVED' || st === 'RESOLVED') {
     plainStatus = 'Resolved & Verified';
     progressPercent = 100;
     currentStageName = 'Resolved';
     stages.forEach(s => s.status = 'completed');
+    currentAction = caseItem.currentAction || 'Repairs verified, inspected, and officially closed in municipal database.';
+    nextAction = caseItem.nextAction || 'Case archived. Citizen satisfaction rating open.';
   } else if (st === 'CLOSED') {
     plainStatus = 'Closed';
     progressPercent = 100;
@@ -225,6 +293,15 @@ export function getIncidentOperationalSummary(caseItem: CivicCase): IncidentOper
     plainStatus = 'Rejected / Ineligible';
     progressPercent = 100;
     currentStageName = 'Closed';
+  } else if (st === 'REVISION_REQUESTED' || st === 'REQUIRES_CORRECTION' || st === 'REWORK_REQUIRED') {
+    plainStatus = 'Revision / Correction Requested';
+    progressPercent = caseItem.progress ?? 50;
+    currentStageName = 'Rework Required';
+    stages[0].status = 'completed';
+    stages[1].status = 'completed';
+    stages[2].status = 'completed';
+    stages[3].status = 'completed';
+    stages[4].status = 'current';
   }
 
   // SLA details

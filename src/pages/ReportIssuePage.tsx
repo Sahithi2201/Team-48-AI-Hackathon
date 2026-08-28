@@ -419,18 +419,32 @@ export const ReportIssuePage: React.FC<ReportIssuePageProps> = ({
       }
 
     } catch (err: any) {
-      console.error('Camera access error:', err);
-      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+      console.warn('Camera access request note:', err?.message || err);
+      const errMsg = (err?.message || '').toLowerCase();
+      const errName = err?.name || '';
+
+      if (
+        errName === 'NotAllowedError' || 
+        errName === 'PermissionDeniedError' || 
+        errName === 'SecurityError' ||
+        errName === 'AbortError' ||
+        errMsg.includes('dismissed') || 
+        errMsg.includes('denied') || 
+        errMsg.includes('permission') ||
+        errMsg.includes('not allowed')
+      ) {
         setCameraError(
-          'Camera access is required to take an evidence photo. Please allow camera access in your browser settings.'
+          'Camera permission was not granted or was dismissed. You can enable camera access in your browser or simply upload a photo using the file picker.'
         );
-      } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
-        setCameraError('Camera is not available on this device. Please upload a photo instead.');
-      } else if (err.name === 'NotSupportedError' || err.name === 'OverconstrainedError') {
-        setCameraError('Requested camera mode is not supported. Please try uploading a photo instead.');
+      } else if (errName === 'NotFoundError' || errName === 'DevicesNotFoundError') {
+        setCameraError('No camera was detected on this device. Please upload a photo from your gallery or files instead.');
+      } else if (errName === 'NotSupportedError' || errName === 'OverconstrainedError') {
+        setCameraError('The requested camera mode is not supported by your browser. Please upload a photo instead.');
       } else {
-        setCameraError('Camera access error. Please allow camera permissions in your browser settings or upload a photo.');
+        setCameraError('Camera access was not available. Please allow camera permissions or upload a photo directly.');
       }
+      setIsCameraActive(false);
+      stopCameraStream();
     } finally {
       setIsSwitchingCamera(false);
     }

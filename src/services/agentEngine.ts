@@ -47,6 +47,7 @@ export type AgentRoleType =
   | 'officer_assignment_agent'
   | 'citizen_notification_agent'
   | 'sla_monitoring_agent'
+  | 'escalation_agent'
   | 'officer_update_agent'
   | 'resolution_verify_agent'
   // Legacy aliases
@@ -873,7 +874,7 @@ export function runSlaMonitoringAgent(input: {
   else hours = 72;
 
   return {
-    agentName: 'SlaMonitoringAgent',
+    agentName: '06 Officer Assignment / SLA Agent',
     agentRole: 'sla_monitoring_agent',
     status: 'completed',
     decision: {
@@ -886,6 +887,68 @@ export function runSlaMonitoringAgent(input: {
     reason: `Target SLA set to ${hours} hours according to ${input.priority} (${input.risk}) citizen charter mandate.`,
     nextAction: 'AWAIT_OFFICER_FIELD_WORK',
     requiresHumanReview: false,
+    timestamp: now
+  };
+}
+
+// ============================================================================
+// 11.5 ESCALATION AGENT (AGENT 07)
+// ============================================================================
+export function runEscalationAgent(input: {
+  complaintId: string;
+  currentStatus: string;
+  isBlocked?: boolean;
+  blockedReason?: string;
+  elapsedHours?: number;
+  slaHours?: number;
+  priority?: PriorityLevel;
+  risk?: RiskLevel;
+}): StructuredAgentResponse<{
+  escalationStatus: 'NORMAL' | 'PRE_ESCALATION_WARNING' | 'ESCALATED_TIER_1' | 'ESCALATED_TIER_2';
+  targetAuthority: string;
+  alertChannels: string[];
+  reason: string;
+}> {
+  const now = new Date().toISOString();
+  const sla = input.slaHours || 48;
+  const elapsed = input.elapsedHours || 4;
+  const ratio = elapsed / sla;
+  const isBlocked = Boolean(input.isBlocked);
+
+  let escalationStatus: 'NORMAL' | 'PRE_ESCALATION_WARNING' | 'ESCALATED_TIER_1' | 'ESCALATED_TIER_2' = 'NORMAL';
+  let targetAuthority = 'Section Junior Engineer';
+  let reason = 'Complaint pacing within acceptable charter SLA window.';
+
+  if (isBlocked || ratio >= 1.0) {
+    escalationStatus = 'ESCALATED_TIER_2';
+    targetAuthority = 'Municipal Commissioner & Executive Engineer';
+    reason = isBlocked
+      ? `Task Blocked in Field: ${input.blockedReason || 'Resource constraint'}. Escalated to Executive Command.`
+      : `SLA Breached (${Math.round(elapsed)}h elapsed of ${sla}h SLA). Immediate commissioner review triggered.`;
+  } else if (ratio >= 0.75) {
+    escalationStatus = 'ESCALATED_TIER_1';
+    targetAuthority = 'Executive Engineer';
+    reason = `75% SLA threshold reached. Priority notification dispatched to Executive Engineer.`;
+  } else if (ratio >= 0.5) {
+    escalationStatus = 'PRE_ESCALATION_WARNING';
+    targetAuthority = 'Section In-Charge';
+    reason = `50% SLA threshold elapsed. Field supervisor alerted for proactive progress check.`;
+  }
+
+  return {
+    agentName: '07 Escalation Agent',
+    agentRole: 'escalation_agent',
+    status: escalationStatus === 'NORMAL' ? 'completed' : 'escalated',
+    decision: {
+      escalationStatus,
+      targetAuthority,
+      alertChannels: ['Government Dashboard', 'SMS Dispatch', 'Supervisor Queue'],
+      reason
+    },
+    confidence: 0.98,
+    reason,
+    nextAction: escalationStatus === 'NORMAL' ? 'CONTINUE_SLA_MONITORING' : 'NOTIFY_GOVERNMENT_COMMAND',
+    requiresHumanReview: escalationStatus !== 'NORMAL',
     timestamp: now
   };
 }

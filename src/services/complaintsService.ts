@@ -1702,6 +1702,7 @@ export async function acceptComplaintInDb(
   const updatePayload = {
     status: 'ACCEPTED',
     accepted_at: now.toISOString(),
+    progress: 25,
     updated_at: now.toISOString(),
     current_action: `Accepted by ${officerName}. Proceeding to Risk & Department Assignment.`,
     next_action: 'Assigning responsible department squad and priority window.',
@@ -1711,6 +1712,7 @@ export async function acceptComplaintInDb(
   const updatedCase: CivicCase = {
     ...existing,
     status: 'ACCEPTED',
+    progress: 25,
     acceptedAt: now.toISOString(),
     updatedDate: now.toISOString(),
     currentAction: `Accepted by ${officerName}. Proceeding to Risk & Department Assignment.`,
@@ -2343,7 +2345,7 @@ export async function confirmAndAssignOfficerInDb(params: {
     assignment_timestamp: now.toISOString(),
     officer_acceptance_status: 'WAITING_FOR_OFFICER_ACCEPTANCE',
     status: 'OFFICER_ASSIGNED',
-    progress: 0,
+    progress: 30,
     sla_total_hours: slaHours,
     sla_hours_remaining: slaHours,
     current_action: `Assigned to ${params.officerName} (${params.departmentName})`,
@@ -2369,7 +2371,7 @@ export async function confirmAndAssignOfficerInDb(params: {
     assignmentTimestamp: now.toISOString(),
     officerAcceptanceStatus: 'WAITING_FOR_OFFICER_ACCEPTANCE',
     status: 'OFFICER_ASSIGNED',
-    progress: 0,
+    progress: 30,
     slaTotalHours: slaHours,
     slaHoursRemaining: slaHours,
     currentAction: `Assigned to ${params.officerName} (${params.departmentName})`,
@@ -2406,14 +2408,33 @@ export async function officerAcceptAssignmentInDb(
   ];
 
   await updateDoc(docRef, {
-    status: 'WORK_ACCEPTED',
+    status: 'IN_PROGRESS',
     officer_acceptance_status: 'ACCEPTED',
-    progress: 15,
-    current_action: `${officerName} accepted task and mobilized equipment.`,
-    next_action: 'On-site execution and repairs underway.',
+    progress: 50,
+    current_action: `${officerName} accepted task and mobilized equipment. Field work in progress.`,
+    next_action: 'On-site execution, repairs underway, and photo evidence collection.',
     updated_at: now.toISOString(),
     timeline: updatedTimeline
   });
+
+  const cached = getCachedComplaints();
+  const updatedList = cached.map(c => {
+    if (c.id === complaintId) {
+      return {
+        ...c,
+        status: 'IN_PROGRESS' as CaseStatus,
+        officerAcceptanceStatus: 'ACCEPTED' as const,
+        progress: 50,
+        currentAction: `${officerName} accepted task and mobilized equipment. Field work in progress.`,
+        nextAction: 'On-site execution, repairs underway, and photo evidence collection.',
+        updatedDate: now.toISOString(),
+        timeline: updatedTimeline
+      };
+    }
+    return c;
+  });
+  saveCachedComplaints(updatedList);
+  notifyComplaintListeners(updatedList);
 }
 
 // 13. OFFICER: UPDATE FIELD PROGRESS & BLOCKS
@@ -2515,8 +2536,8 @@ export async function officerSubmitResolutionReportInDb(params: {
   ];
 
   await updateDoc(docRef, {
-    status: 'AWAITING GOVERNMENT VERIFICATION',
-    progress: 95,
+    status: 'WORK_COMPLETED_REVIEW',
+    progress: 80,
     resolution_report: resolutionReport,
     resolved_image_url: finalAfterPhoto,
     current_action: 'Work completed by squad. Awaiting Government Desk verification.',
@@ -2524,6 +2545,26 @@ export async function officerSubmitResolutionReportInDb(params: {
     updated_at: now.toISOString(),
     timeline: updatedTimeline
   });
+
+  const cached = getCachedComplaints();
+  const updatedList = cached.map(c => {
+    if (c.id === params.complaintId) {
+      return {
+        ...c,
+        status: 'WORK_COMPLETED_REVIEW' as CaseStatus,
+        progress: 80,
+        resolutionReport,
+        resolvedImageUrl: finalAfterPhoto,
+        currentAction: 'Work completed by squad. Awaiting Government Desk verification.',
+        nextAction: 'Government officer audit and case closeout.',
+        updatedDate: now.toISOString(),
+        timeline: updatedTimeline
+      };
+    }
+    return c;
+  });
+  saveCachedComplaints(updatedList);
+  notifyComplaintListeners(updatedList);
 }
 
 // 15. GOVERNMENT: VERIFY RESOLUTION AND MARK SOLVED
@@ -2690,8 +2731,10 @@ export async function submitOfficerWorkUpdateInDb(input: OfficerWorkUpdateInput)
     let newComplaintStatus: CaseStatus = 'IN_PROGRESS';
     const newTimelineEvents: TimelineEvent[] = [];
 
+    const effectiveProgress = input.workStatus === 'WORK_COMPLETED' ? 80 : (input.progressPercentage || 65);
+
     if (input.workStatus === 'WORK_COMPLETED' || input.progressPercentage >= 100) {
-      newComplaintStatus = 'AWAITING GOVERNMENT VERIFICATION';
+      newComplaintStatus = 'WORK_COMPLETED_REVIEW';
       newTimelineEvents.push({
         id: `t-off-comp-${Date.now()}`,
         title: 'Officer Work Completed — Awaiting Government Approval',
@@ -2705,7 +2748,7 @@ export async function submitOfficerWorkUpdateInDb(input: OfficerWorkUpdateInput)
       newComplaintStatus = 'BLOCKED / DELAYED';
       newTimelineEvents.push({
         id: `t-off-upd-${Date.now()}`,
-        title: `Task Blocked / Delayed (${input.progressPercentage}%)`,
+        title: `Task Blocked / Delayed (${effectiveProgress}%)`,
         timestamp: formattedDate,
         description: `Bottleneck reported: ${input.issuesEncountered || 'Resource or field delay'}. Officer: ${input.officerName}. Next: ${input.nextAction}`,
         status: 'current',
@@ -2716,7 +2759,7 @@ export async function submitOfficerWorkUpdateInDb(input: OfficerWorkUpdateInput)
       newComplaintStatus = 'IN_PROGRESS';
       newTimelineEvents.push({
         id: `t-off-upd-${Date.now()}`,
-        title: `Officer Work Progress Update (${input.progressPercentage}%)`,
+        title: `Officer Work Progress Update (${effectiveProgress}%)`,
         timestamp: formattedDate,
         description: `${input.workDescription}. Next Action: ${input.nextAction}`,
         status: 'current',
@@ -2741,7 +2784,7 @@ export async function submitOfficerWorkUpdateInDb(input: OfficerWorkUpdateInput)
 
     const docUpdateData = {
       status: newComplaintStatus,
-      progress: input.progressPercentage,
+      progress: effectiveProgress,
       current_action: input.workDescription,
       next_action: input.nextAction,
       is_blocked: input.workStatus === 'BLOCKED',
@@ -2767,7 +2810,7 @@ export async function submitOfficerWorkUpdateInDb(input: OfficerWorkUpdateInput)
         return {
           ...c,
           status: newComplaintStatus,
-          progress: input.progressPercentage,
+          progress: effectiveProgress,
           currentAction: input.workDescription,
           nextAction: input.nextAction,
           isBlocked: input.workStatus === 'BLOCKED',
@@ -2959,6 +3002,7 @@ export async function governmentApproveWorkUpdateInDb(params: {
 
   const existing = convertDocToCivicCase(params.complaintId, snap.data());
   const isFinal = params.isFinalResolution || 
+    existing.status === 'WORK_COMPLETED_REVIEW' ||
     existing.status === 'AWAITING GOVERNMENT VERIFICATION' || 
     existing.status === 'AWAITING_VERIFICATION' ||
     existing.status === 'PENDING_GOVERNMENT_APPROVAL';
