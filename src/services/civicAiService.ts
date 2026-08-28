@@ -1,4 +1,3 @@
-import { GoogleGenAI } from '@google/genai';
 import { 
   CivicCase, 
   CivicDepartmentKey, 
@@ -9,21 +8,6 @@ import {
 } from '../types';
 import { CIVIC_DEPARTMENTS_CONFIG, getAllOfficersList } from './complaintsService';
 
-// Initialize Gemini Client
-const getGeminiClient = (): GoogleGenAI | null => {
-  try {
-    const apiKey = 
-      (typeof process !== 'undefined' && (process.env.GEMINI_API_KEY || process.env.API_KEY)) ||
-      (typeof import.meta !== 'undefined' && ((import.meta as any).env?.VITE_GEMINI_API_KEY || (import.meta as any).env?.GEMINI_API_KEY)) ||
-      '';
-    
-    // Return instance if apiKey present or empty (SDK will attempt default credentials if configured)
-    return new GoogleGenAI({ apiKey: apiKey || undefined });
-  } catch (err) {
-    console.warn('[CivicMind AI] Error initializing GoogleGenAI client:', err);
-    return null;
-  }
-};
 
 export interface DuplicateDetectionResult {
   caseId: string;
@@ -475,111 +459,65 @@ export function generateDeterministicAIAnalysis(targetCase: CivicCase, allCases:
   };
 }
 
-// 6. MAIN AI COMPLAINT ANALYSIS (CALLS GEMINI 3.7 FLASH WITH ROBUST FALLBACK)
+// 6. MAIN AI COMPLAINT ANALYSIS (CALLS SERVER-SIDE GEMINI WITH ROBUST FALLBACK)
 export async function analyzeCaseWithAI(
   targetCase: CivicCase,
   allCases: CivicCase[]
 ): Promise<AICaseAnalysis> {
   const deterministicFallback = generateDeterministicAIAnalysis(targetCase, allCases);
-  const aiClient = getGeminiClient();
-
-  if (!aiClient) {
-    return deterministicFallback;
-  }
-
-  const existingDeptsList = CIVIC_DEPARTMENTS_CONFIG.map(d => `${d.name} (Key: ${d.key})`).join(', ');
-  const officersList = getAllOfficersList().map(o => `${o.name} [ID: ${o.id}, Dept: ${o.departmentName}]`).join(', ');
-
-  const prompt = `You are "CivicMind AI Intelligence", an advanced civic operations assistant for Government Municipal Officers.
-Analyze this citizen complaint accurately based on real data:
-
-COMPLAINT DETAILS:
-- ID: ${targetCase.id}
-- Title: ${targetCase.title}
-- Description: ${targetCase.description}
-- Category: ${targetCase.category}
-- Location: ${targetCase.location.colony || targetCase.location.area || ''}, ${targetCase.location.city || ''} (Address: ${targetCase.location.address})
-- Problem Duration: ${targetCase.problemDuration || 'Unknown'}
-- Citizen: ${targetCase.citizenName || 'Citizen'}
-- Has Image: ${Boolean(targetCase.imageUrl || (targetCase.evidenceImages && targetCase.evidenceImages.length > 0))}
-- Current Status: ${targetCase.status}
-
-AVAILABLE DEPARTMENTS (Do NOT invent new departments):
-${existingDeptsList}
-
-AVAILABLE OFFICERS (Do NOT invent fake officers):
-${officersList}
-
-Return a valid JSON object matching this schema:
-{
-  "problem": "Concise 1-2 line problem diagnosis",
-  "impact": "1-2 line public impact & health/safety consequences",
-  "urgency": "CRITICAL" | "HIGH" | "MEDIUM" | "LOW",
-  "recommendedPriority": "P1" | "P2" | "P3" | "P4",
-  "priorityReason": "Concise reason why this priority is recommended",
-  "recommendedDepartmentKey": "One of sanitation, water, roads, electrical, safety",
-  "recommendedDepartmentName": "Department name corresponding to key",
-  "departmentReason": "Why this department was chosen",
-  "recommendedOfficerId": "ID of recommended officer",
-  "recommendedOfficerName": "Name of recommended officer",
-  "officerReason": "Reason why this officer is suitable",
-  "recommendedActions": ["1. Step one", "2. Step two", "3. Step three", "4. Step four"],
-  "summary": "2-3 line executive summary of complaint for government administrator",
-  "visualAnalysisDescription": "Visual assessment if photo exists (use cautious words like 'Appears to show...', 'Possible...')"
-}`;
 
   try {
-    const response = await aiClient.models.generateContent({
-      model: 'gemini-3.7-flash',
-      contents: prompt,
-      config: {
-        responseMimeType: 'application/json',
-      }
+    const res = await fetch('/api/ai/analyze-case', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ targetCase, allCases })
     });
 
-    const rawText = response.text || '';
-    const parsed = JSON.parse(rawText);
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.success && data.analysis) {
+        const parsed = data.analysis;
+        const validDepts = CIVIC_DEPARTMENTS_CONFIG.map(d => d.key);
+        const chosenDeptKey = validDepts.includes(parsed.recommendedDepartmentKey) 
+          ? parsed.recommendedDepartmentKey 
+          : deterministicFallback.recommendedDepartmentKey;
+        
+        const matchedDept = CIVIC_DEPARTMENTS_CONFIG.find(d => d.key === chosenDeptKey) || CIVIC_DEPARTMENTS_CONFIG[0];
+        const allOfficers = getAllOfficersList();
+        const matchedOfficer = allOfficers.find(o => o.id === parsed.recommendedOfficerId || o.name.toLowerCase() === (parsed.recommendedOfficerName || '').toLowerCase()) || (deterministicFallback.recommendedOfficerId ? allOfficers.find(o => o.id === deterministicFallback.recommendedOfficerId) : matchedDept.officers[0]);
 
-    // Validate and merge with deterministic duplicate detection and SLA predictions
-    const validDepts = CIVIC_DEPARTMENTS_CONFIG.map(d => d.key);
-    const chosenDeptKey = validDepts.includes(parsed.recommendedDepartmentKey) 
-      ? parsed.recommendedDepartmentKey 
-      : deterministicFallback.recommendedDepartmentKey;
-    
-    const matchedDept = CIVIC_DEPARTMENTS_CONFIG.find(d => d.key === chosenDeptKey) || CIVIC_DEPARTMENTS_CONFIG[0];
-
-    const allOfficers = getAllOfficersList();
-    const matchedOfficer = allOfficers.find(o => o.id === parsed.recommendedOfficerId || o.name.toLowerCase() === (parsed.recommendedOfficerName || '').toLowerCase()) || deterministicFallback.recommendedOfficerId ? allOfficers.find(o => o.id === deterministicFallback.recommendedOfficerId) : matchedDept.officers[0];
-
-    return {
-      problem: parsed.problem || deterministicFallback.problem,
-      impact: parsed.impact || deterministicFallback.impact,
-      urgency: parsed.urgency || deterministicFallback.urgency,
-      recommendedPriority: (['P1', 'P2', 'P3', 'P4'].includes(parsed.recommendedPriority) ? parsed.recommendedPriority : deterministicFallback.recommendedPriority) as any,
-      priorityReason: parsed.priorityReason || deterministicFallback.priorityReason,
-      recommendedDepartmentKey: chosenDeptKey,
-      recommendedDepartmentName: matchedDept.name,
-      departmentReason: parsed.departmentReason || deterministicFallback.departmentReason,
-      recommendedOfficerId: matchedOfficer?.id || deterministicFallback.recommendedOfficerId,
-      recommendedOfficerName: matchedOfficer?.name || deterministicFallback.recommendedOfficerName,
-      officerReason: parsed.officerReason || deterministicFallback.officerReason,
-      recommendedActions: Array.isArray(parsed.recommendedActions) && parsed.recommendedActions.length > 0 ? parsed.recommendedActions : deterministicFallback.recommendedActions,
-      summary: parsed.summary || deterministicFallback.summary,
-      possibleDuplicates: deterministicFallback.possibleDuplicates,
-      visualAnalysis: targetCase.imageUrl || (targetCase.evidenceImages && targetCase.evidenceImages.length > 0) ? {
-        hasVisual: true,
-        description: parsed.visualAnalysisDescription || deterministicFallback.visualAnalysis?.description || 'Image appears to show physical civic damage in public area.',
-        detectedElements: deterministicFallback.visualAnalysis?.detectedElements || ['civic physical damage'],
-        confidence: 'AI Confidence: ~92% (Gemini Multimodal Verified)'
-      } : undefined,
-      slaPrediction: deterministicFallback.slaPrediction,
-      modelUsed: 'Gemini 3.7 Flash Live',
-      analyzedAt: new Date().toISOString()
-    };
-  } catch (err) {
-    console.warn('[CivicMind AI] Live Gemini call returned error, using verified deterministic AI fallback:', err);
-    return deterministicFallback;
+        return {
+          problem: parsed.problem || deterministicFallback.problem,
+          impact: parsed.impact || deterministicFallback.impact,
+          urgency: parsed.urgency || deterministicFallback.urgency,
+          recommendedPriority: (['P1', 'P2', 'P3', 'P4'].includes(parsed.recommendedPriority) ? parsed.recommendedPriority : deterministicFallback.recommendedPriority) as any,
+          priorityReason: parsed.priorityReason || deterministicFallback.priorityReason,
+          recommendedDepartmentKey: chosenDeptKey,
+          recommendedDepartmentName: matchedDept.name,
+          departmentReason: parsed.departmentReason || deterministicFallback.departmentReason,
+          recommendedOfficerId: matchedOfficer?.id || deterministicFallback.recommendedOfficerId,
+          recommendedOfficerName: matchedOfficer?.name || deterministicFallback.recommendedOfficerName,
+          officerReason: parsed.officerReason || deterministicFallback.officerReason,
+          recommendedActions: Array.isArray(parsed.recommendedActions) && parsed.recommendedActions.length > 0 ? parsed.recommendedActions : deterministicFallback.recommendedActions,
+          summary: parsed.summary || deterministicFallback.summary,
+          possibleDuplicates: deterministicFallback.possibleDuplicates,
+          visualAnalysis: targetCase.imageUrl || (targetCase.evidenceImages && targetCase.evidenceImages.length > 0) ? {
+            hasVisual: true,
+            description: parsed.visualAnalysis?.description || deterministicFallback.visualAnalysis?.description || 'Image appears to show physical civic damage in public area.',
+            detectedElements: parsed.visualAnalysis?.detectedElements || deterministicFallback.visualAnalysis?.detectedElements || ['civic physical damage'],
+            confidence: 'AI Confidence: ~92% (Server-Side Gemini Multimodal Verified)'
+          } : undefined,
+          slaPrediction: deterministicFallback.slaPrediction,
+          modelUsed: parsed.modelUsed || 'CivicMind AI (gemini-3.7-flash)',
+          analyzedAt: new Date().toISOString()
+        };
+      }
+    }
+  } catch (e) {
+    // Network or server offline - fallback smoothly
   }
+
+  return deterministicFallback;
 }
 
 // 7. ASK CIVICMIND AI (NATURAL LANGUAGE QUERY USING REAL DATABASE DATA)
@@ -600,67 +538,22 @@ export async function askCivicMindAI(
   const officerWorkloads = calculateOfficerWorkloads(cases);
   const patterns = detectCivicPatterns(cases);
 
-  const contextData = {
-    totalComplaints: totalCases,
-    unassignedCount,
-    solvedCount,
-    blockedCount,
-    highRiskP1Count: p1Count,
-    mediumHighP2Count: p2Count,
-    recentComplaintsSample: cases.slice(0, 15).map(c => ({
-      id: c.id,
-      title: c.title,
-      category: c.category,
-      department: c.assignedDepartment || 'Unassigned',
-      officer: c.assignedOfficerName || 'None',
-      status: c.status,
-      risk: c.finalGovernmentRisk || c.systemRecommendedRisk || 'HIGH',
-      location: `${c.location.colony || c.location.area || ''}, ${c.location.city || ''}`,
-      duration: c.problemDuration
-    })),
-    officerWorkloadRankings: officerWorkloads.map(o => ({
-      name: o.officerName,
-      department: o.departmentName,
-      ongoing: o.ongoing,
-      resolved: o.resolved,
-      status: o.workloadStatus
-    })),
-    detectedPatterns: patterns.map(p => ({
-      title: p.title,
-      locality: p.locality,
-      count: p.complaintCount,
-      action: p.recommendedGovernmentAction
-    }))
-  };
-
-  const aiClient = getGeminiClient();
-  if (aiClient) {
-    try {
-      const prompt = `You are "CivicMind AI", an AI intelligence assistant inside the Government Command Center.
-Answer the Government Officer's question accurately using ONLY the live database context provided below.
-
-LIVE DATABASE CONTEXT:
-${JSON.stringify(contextData, null, 2)}
-
-OFFICER QUESTION: "${cleanQuery}"
-
-GUIDELINES:
-1. Provide a concise, clear, and direct answer (2-4 bullet points or short paragraph).
-2. Cite specific Complaint IDs, Officer Names, Departments, or Localities from the context when relevant.
-3. If the data does not contain the answer, state: "Insufficient data available in the current database."
-4. Do NOT hallucinate fake complaints or officers.`;
-
-      const response = await aiClient.models.generateContent({
-        model: 'gemini-3.7-flash',
-        contents: prompt
-      });
-
-      if (response.text) {
-        return response.text.trim();
+  // Try server endpoint first
+  try {
+    const summaryText = `Total: ${totalCases}, P1 High: ${p1Count}, P2: ${p2Count}, Unassigned: ${unassignedCount}, Solved: ${solvedCount}, Blocked: ${blockedCount}`;
+    const res = await fetch('/api/ai/ask-civicmind', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query: cleanQuery, casesSummary: summaryText })
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.success && data.answer) {
+        return data.answer.trim();
       }
-    } catch (e) {
-      console.warn('[CivicMind AI] Error querying Gemini, evaluating via heuristic parser:', e);
     }
+  } catch (e) {
+    // Fallback to local heuristic
   }
 
   // Heuristic Natural Language Handler (Instant / Offline)

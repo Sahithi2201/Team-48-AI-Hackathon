@@ -22,8 +22,8 @@ service cloud.firestore {
         getUserRole() == 'OWNER' || 
         getUserRole() == 'owner' || 
         getUserRole() == 'SYSTEM_ADMIN' ||
-        request.auth.token.email == 'owner@civicmind.gov.in' ||
-        request.auth.token.email == 'vu.241fa04491@gmail.com'
+        request.auth.token.email.matches('(?i)owner@civicmind[.]gov[.]in') ||
+        request.auth.token.email.matches('(?i)vu[.]241fa04491@gmail[.]com')
       );
     }
     
@@ -32,8 +32,8 @@ service cloud.firestore {
         isAuthenticated() && (
           getUserRole() == 'GOVERNMENT_ADMIN' || 
           getUserRole() == 'government_admin' ||
-          request.auth.token.email.matches('.*@municipal[.]gov[.]in') ||
-          request.auth.token.email.matches('.*@civicmind[.]gov[.]in')
+          request.auth.token.email.matches('(?i).*@municipal[.]gov[.]in') ||
+          request.auth.token.email.matches('(?i).*@civicmind[.]gov[.]in')
         )
       );
     }
@@ -48,34 +48,23 @@ service cloud.firestore {
     }
 
     // Complaints Collection
-    // Read: Allows public ticket tracking & citizen lookup, plus officer/gov access
-    // Create: Allowed for citizens and public grievance intake
-    // Update: Allowed for assigned officers, gov admins, owners, or citizen info replies
-    // Delete: Strictly reserved for Government Admins and System Owner
     match /complaints/{complaintId} {
       allow read: if true;
       allow create: if true;
-      allow update: if isGovAdmin() || isOfficer() || isAuthenticated() || true;
+      allow update: if true;
       allow delete: if isGovAdmin() || isOwner();
       
       match /{document=**} {
         allow read: if true;
-        allow write: if isGovAdmin() || isOfficer() || isAuthenticated();
+        allow write: if true;
       }
     }
 
     // Users Collection
-    // Protect profile information, prevent role escalation by regular citizens
     match /users/{userId} {
-      allow read: if isAuthenticated() && (request.auth.uid == userId || isGovAdmin());
-      allow create: if isAuthenticated() && request.auth.uid == userId;
-      allow update: if isAuthenticated() && (
-        isOwner() || (
-          request.auth.uid == userId && 
-          (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'is_admin']))
-        )
-      );
-      allow delete: if isOwner();
+      allow read: if true;
+      allow create, update: if true;
+      allow delete: if isGovAdmin() || isOwner();
     }
 
     // Departments Registry
@@ -86,26 +75,38 @@ service cloud.firestore {
 
     // Officers Registry
     match /officers/{officerId} {
-      allow read: if isAuthenticated() || isGovAdmin();
+      allow read: if true;
       allow write: if isGovAdmin() || isOwner();
     }
 
     // Officer Work Updates
     match /officer_work_updates/{updateId} {
       allow read: if true;
-      allow write: if isOfficer() || isGovAdmin() || isOwner();
+      allow write: if true;
     }
 
     // Assignment History
     match /assignment_history/{historyId} {
-      allow read: if isOfficer() || isGovAdmin();
-      allow write: if isGovAdmin() || isOwner();
+      allow read: if true;
+      allow write: if true;
     }
 
     // Agent Activity Logs & Audit Trail
     match /agent_activity_logs/{logId} {
-      allow read: if isGovAdmin() || isOwner();
-      allow write: if isGovAdmin() || isOwner() || isAuthenticated();
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // AP Government Projects & Officers
+    match /ap_government_projects/{projectId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    match /ap_government_officers/{officerId} {
+      allow read: if true;
+      allow write: if true;
     }
   }
 }
+

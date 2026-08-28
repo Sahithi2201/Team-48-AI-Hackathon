@@ -390,12 +390,14 @@ export const TrackCasePage: React.FC<TrackCasePageProps> = ({
                     const isCompleted = update.work_status === 'WORK_COMPLETED';
                     const isBlocked = update.work_status === 'BLOCKED';
                     const isApproved = update.government_review_status === 'APPROVED';
+                    const isRejected = update.government_review_status === 'REJECTED';
 
                     return (
                       <div 
                         key={update.update_id || idx}
                         className={`p-5 rounded-2xl border transition-all space-y-3.5 ${
-                          isCompleted ? 'bg-emerald-50/70 border-emerald-300' :
+                          isApproved ? 'bg-emerald-50/70 border-emerald-300' :
+                          isCompleted ? 'bg-purple-50/70 border-purple-300' :
                           isBlocked ? 'bg-rose-50/70 border-rose-300' :
                           'bg-slate-50 border-slate-200'
                         }`}
@@ -404,14 +406,20 @@ export const TrackCasePage: React.FC<TrackCasePageProps> = ({
                         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200/80 pb-2.5">
                           <div className="flex items-center gap-2">
                             <span className="text-xs font-black uppercase tracking-wider text-blue-900 font-mono">
-                              GOVERNMENT UPDATE
+                              FIELD SQUAD UPDATE
                             </span>
                             <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase ${
-                              isCompleted ? 'bg-emerald-600 text-white' :
+                              isApproved ? 'bg-emerald-600 text-white' :
+                              isCompleted ? 'bg-purple-600 text-white' :
                               isBlocked ? 'bg-rose-600 text-white' :
+                              isRejected ? 'bg-amber-600 text-white' :
                               'bg-blue-600 text-white'
                             }`}>
-                              {isCompleted ? 'Resolved ✓' : isBlocked ? 'Blocked / Delayed' : 'Work In Progress'}
+                              {isApproved ? 'Resolved & Verified ✓' :
+                               isCompleted ? 'Work Completed (Awaiting Gov Approval)' :
+                               isBlocked ? 'Blocked / Delayed' :
+                               isRejected ? 'Revision Requested' :
+                               'Work In Progress'}
                             </span>
                             {isApproved && (
                               <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1">

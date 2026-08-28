@@ -1,4 +1,3 @@
-import { GoogleGenAI, Type } from '@google/genai';
 import { 
   CivicCase, 
   CaseStatus, 
@@ -155,20 +154,6 @@ export interface AgentSwarmExecutionResult {
   }>;
   auditLogs: AgentActivityLog[];
 }
-
-// Gemini Client initialization
-const getGeminiClient = (): GoogleGenAI | null => {
-  try {
-    const apiKey = 
-      (typeof process !== 'undefined' && (process.env.GEMINI_API_KEY || process.env.API_KEY)) ||
-      (typeof import.meta !== 'undefined' && ((import.meta as any).env?.VITE_GEMINI_API_KEY || (import.meta as any).env?.GEMINI_API_KEY)) ||
-      '';
-    return new GoogleGenAI({ apiKey: apiKey || undefined });
-  } catch (err) {
-    console.warn('[AgentEngine] GoogleGenAI initialization:', err);
-    return null;
-  }
-};
 
 // ============================================================================
 // IDEMPOTENCY & AUDIT LOGGING SERVICE

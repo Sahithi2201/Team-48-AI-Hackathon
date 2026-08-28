@@ -1,5 +1,5 @@
 {
-  "name": "Remix Remix Remix Remix Remix CivicMind",
+  "name": "CivicMind",
   "description": "CivicMind — Government Complaint Assignment Dashboard and AI-Powered Civic Resolution Platform",
   "requestFramePermissions": [
     "geolocation",

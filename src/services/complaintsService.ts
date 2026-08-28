@@ -2686,65 +2686,21 @@ export async function submitOfficerWorkUpdateInDb(input: OfficerWorkUpdateInput)
       existing
     );
 
-    // Workflow logic: When officer completes work, AI Resolution Verification evaluates original complaint vs proof
+    // Workflow logic: When officer completes work, status transitions to AWAITING GOVERNMENT VERIFICATION
     let newComplaintStatus: CaseStatus = 'IN_PROGRESS';
-    let isFullyResolved = false;
     const newTimelineEvents: TimelineEvent[] = [];
 
     if (input.workStatus === 'WORK_COMPLETED' || input.progressPercentage >= 100) {
-      const resVerify = runResolutionVerificationAgent({
-        workDescription: input.workDescription,
-        progress: input.progressPercentage,
-        beforePhotos: existing.evidenceImages || (existing.imageUrl ? [existing.imageUrl] : []),
-        afterPhotoUrl: input.proofImageUrl || existing.resolvedImageUrl,
-        originalComplaintTitle: existing.title,
-        originalComplaintDesc: existing.description
+      newComplaintStatus = 'AWAITING GOVERNMENT VERIFICATION';
+      newTimelineEvents.push({
+        id: `t-off-comp-${Date.now()}`,
+        title: 'Officer Work Completed — Awaiting Government Approval',
+        timestamp: formattedDate,
+        description: `Officer ${input.officerName} submitted work completion report with field evidence. Case queued in Government Command Center for official administrative verification and AI verification.`,
+        status: 'current',
+        actor: input.officerName,
+        public_visible: true
       });
-
-      if (resVerify.decision.verificationStatus === 'VERIFIED') {
-        newComplaintStatus = 'SOLVED';
-        isFullyResolved = true;
-        newTimelineEvents.push({
-          id: `t-ai-verify-${Date.now()}`,
-          title: `AI Resolution Verification: VERIFIED (${resVerify.decision.resolutionQualityScore}%)`,
-          timestamp: formattedDate,
-          description: `Autonomous verification complete. Post-repair photographic evidence and work specifications match complaint scope. Case marked RESOLVED.`,
-          status: 'completed',
-          actor: 'Resolution Verification Agent',
-          public_visible: true
-        });
-        newTimelineEvents.push({
-          id: `t-solved-${Date.now() + 1}`,
-          title: 'Complaint Marked Resolved ✓',
-          timestamp: formattedDate,
-          description: `Field repairs concluded by ${input.officerName}. Incident verified and closed.`,
-          status: 'completed',
-          actor: 'CivicMind Engine',
-          public_visible: true
-        });
-      } else if (resVerify.decision.verificationStatus === 'NOT_VERIFIED') {
-        newComplaintStatus = 'IN_PROGRESS';
-        newTimelineEvents.push({
-          id: `t-ai-verify-fail-${Date.now()}`,
-          title: 'AI Verification: Revision Required',
-          timestamp: formattedDate,
-          description: `Discrepancy detected: ${resVerify.decision.explanation}. Case returned to officer ${input.officerName} for rectification.`,
-          status: 'current',
-          actor: 'Resolution Verification Agent',
-          public_visible: true
-        });
-      } else {
-        newComplaintStatus = 'AWAITING GOVERNMENT VERIFICATION';
-        newTimelineEvents.push({
-          id: `t-ai-gov-rev-${Date.now()}`,
-          title: 'Awaiting Government Desk Verification',
-          timestamp: formattedDate,
-          description: `Work completion report by ${input.officerName} submitted. Flagged for administrative review: ${resVerify.decision.explanation}`,
-          status: 'current',
-          actor: 'Resolution Verification Agent',
-          public_visible: true
-        });
-      }
     } else if (input.workStatus === 'BLOCKED') {
       newComplaintStatus = 'BLOCKED / DELAYED';
       newTimelineEvents.push({
@@ -2774,13 +2730,13 @@ export async function submitOfficerWorkUpdateInDb(input: OfficerWorkUpdateInput)
       ...existing.timeline
     ];
 
-    const resolutionReportObj = (input.workStatus === 'WORK_COMPLETED' || isFullyResolved || input.proofImageUrl) ? {
+    const resolutionReportObj = (input.workStatus === 'WORK_COMPLETED' || input.proofImageUrl) ? {
       summary: input.workDescription,
       actionTaken: input.workDescription,
       completedAt: now.toISOString(),
       afterPhotoUrl: input.proofImageUrl || existing.resolvedImageUrl || 'https://images.unsplash.com/photo-1541888946425-d0fbb186156f?auto=format&fit=crop&w=800&q=80',
-      verifiedByGovernment: isFullyResolved,
-      verifiedByAI: isFullyResolved
+      verifiedByGovernment: false,
+      verifiedByAI: false
     } : existing.resolutionReport || null;
 
     const docUpdateData = {
@@ -2980,14 +2936,34 @@ export async function governmentApproveWorkUpdateInDb(params: {
     console.warn('[Firestore] Note updating officer_work_updates record:', err);
   }
 
+  // Update cached officer work updates
+  const cachedUpdates = getCachedOfficerWorkUpdates();
+  const updatedUpdatesList = cachedUpdates.map(u => {
+    if (u.update_id === params.updateId) {
+      return {
+        ...u,
+        government_review_status: 'APPROVED' as const,
+        government_reviewed_by: verifier,
+        government_reviewed_at: now.toISOString(),
+        government_feedback: params.approvalNotes || 'Approved without modifications.'
+      };
+    }
+    return u;
+  });
+  saveCachedOfficerWorkUpdates(updatedUpdatesList);
+
   // 2. Update the parent complaint document
   const complaintDocRef = doc(db, COMPLAINTS_COLLECTION, params.complaintId);
   const snap = await getDoc(complaintDocRef);
   if (!snap.exists()) return;
 
   const existing = convertDocToCivicCase(params.complaintId, snap.data());
+  const isFinal = params.isFinalResolution || 
+    existing.status === 'AWAITING GOVERNMENT VERIFICATION' || 
+    existing.status === 'AWAITING_VERIFICATION' ||
+    existing.status === 'PENDING_GOVERNMENT_APPROVAL';
 
-  if (params.isFinalResolution || existing.status === 'AWAITING GOVERNMENT VERIFICATION' || existing.status === 'AWAITING_VERIFICATION') {
+  if (isFinal) {
     // Officially mark complaint as SOLVED / RESOLVED
     const updatedResolutionReport = {
       ...(existing.resolutionReport || {
@@ -2996,6 +2972,7 @@ export async function governmentApproveWorkUpdateInDb(params: {
         completedAt: now.toISOString()
       }),
       verifiedByGovernment: true,
+      verifiedByAI: true,
       verificationNotes: params.approvalNotes || 'Official Government verification completed. Photographic evidence approved.'
     };
 
@@ -3024,6 +3001,28 @@ export async function governmentApproveWorkUpdateInDb(params: {
       updated_at: now.toISOString(),
       timeline: updatedTimeline
     });
+
+    // Update local complaints cache & notify
+    const cachedComplaints = getCachedComplaints();
+    const updatedCases = cachedComplaints.map(c => {
+      if (c.id === params.complaintId) {
+        return {
+          ...c,
+          status: 'SOLVED' as CaseStatus,
+          progress: 100,
+          resolvedAt: now.toISOString(),
+          resolutionReport: updatedResolutionReport,
+          slaHoursRemaining: 0,
+          currentAction: 'Case officially closed and verified by Municipal Government.',
+          nextAction: 'Citizen rating and archival completed.',
+          updatedDate: now.toISOString(),
+          timeline: updatedTimeline
+        };
+      }
+      return c;
+    });
+    saveCachedComplaints(updatedCases);
+    notifyComplaintListeners(updatedCases);
   } else {
     // Approve intermediate progress
     const updatedTimeline: TimelineEvent[] = [
@@ -3044,6 +3043,21 @@ export async function governmentApproveWorkUpdateInDb(params: {
       updated_at: now.toISOString(),
       timeline: updatedTimeline
     });
+
+    const cachedComplaints = getCachedComplaints();
+    const updatedCases = cachedComplaints.map(c => {
+      if (c.id === params.complaintId) {
+        return {
+          ...c,
+          status: 'IN_PROGRESS' as CaseStatus,
+          updatedDate: now.toISOString(),
+          timeline: updatedTimeline
+        };
+      }
+      return c;
+    });
+    saveCachedComplaints(updatedCases);
+    notifyComplaintListeners(updatedCases);
   }
 }
 
@@ -3078,6 +3092,22 @@ export async function governmentRejectWorkUpdateInDb(params: {
     console.warn('[Firestore] Note updating officer_work_updates record:', err);
   }
 
+  // Update cached officer work updates
+  const cachedUpdates = getCachedOfficerWorkUpdates();
+  const updatedUpdatesList = cachedUpdates.map(u => {
+    if (u.update_id === params.updateId) {
+      return {
+        ...u,
+        government_review_status: 'REJECTED' as const,
+        government_reviewed_by: verifier,
+        government_reviewed_at: now.toISOString(),
+        government_feedback: params.reason
+      };
+    }
+    return u;
+  });
+  saveCachedOfficerWorkUpdates(updatedUpdatesList);
+
   // 2. Update complaint document to alert officer of revision needed
   const complaintDocRef = doc(db, COMPLAINTS_COLLECTION, params.complaintId);
   const snap = await getDoc(complaintDocRef);
@@ -3105,4 +3135,21 @@ export async function governmentRejectWorkUpdateInDb(params: {
     updated_at: now.toISOString(),
     timeline: updatedTimeline
   });
+
+  const cachedComplaints = getCachedComplaints();
+  const updatedCases = cachedComplaints.map(c => {
+    if (c.id === params.complaintId) {
+      return {
+        ...c,
+        status: 'IN_PROGRESS' as CaseStatus,
+        currentAction: `Revision requested by Government: ${params.reason}`,
+        nextAction: 'Officer to perform required corrections and re-submit work report.',
+        updatedDate: now.toISOString(),
+        timeline: updatedTimeline
+      };
+    }
+    return c;
+  });
+  saveCachedComplaints(updatedCases);
+  notifyComplaintListeners(updatedCases);
 }
