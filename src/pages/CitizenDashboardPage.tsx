@@ -72,14 +72,14 @@ export const CitizenDashboardPage: React.FC<CitizenDashboardPageProps> = ({
     // Check match by Phone Number
     if (userPhone && userPhone.length >= 10) {
       const cPhone = (c.citizenPhone || '').replace(/\D/g, '');
-      if (cPhone && (cPhone === userPhone || cPhone.endsWith(userPhone) || userPhone.endsWith(cPhone))) {
+      if (cPhone && cPhone.length >= 10 && (cPhone.slice(-10) === userPhone.slice(-10))) {
         return true;
       }
     }
 
     // Check match by Name / Username
     const cName = (c.citizenName || '').trim().toLowerCase();
-    if (cName && (cName === userFullName || (userUsername && cName.includes(userUsername)))) {
+    if (cName && (cName === userFullName || (userUsername && cName.includes(userUsername)) || (userFullName && userFullName.includes(cName)))) {
       return true;
     }
 

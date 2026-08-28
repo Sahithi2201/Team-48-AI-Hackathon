@@ -72,8 +72,61 @@ import { CaseDetailsModal } from './components/CaseDetailsModal';
 import handComplaintStampBg from './assets/images/hand_wooden_complaint_stamp_1787390509621.jpg';
 
 export function App() {
-  // Navigation State
-  const [currentView, setCurrentView] = useState<AppView>('landing');
+  // Navigation State with private path detection
+  const [currentView, setCurrentView] = useState<AppView>(() => {
+    try {
+      const path = (window.location.pathname || '').toLowerCase();
+      const hash = (window.location.hash || '').toLowerCase();
+      const search = (window.location.search || '').toLowerCase();
+
+      // Private Government route access
+      if (
+        path.includes('secure-government-login') || 
+        path.includes('government-login') || 
+        path.includes('/government') || 
+        path.includes('/gov') || 
+        path.includes('/command-center') ||
+        path.includes('/admin') ||
+        hash.includes('gov') ||
+        hash.includes('government') ||
+        hash.includes('admin') ||
+        search.includes('portal=gov')
+      ) {
+        if (canAccessGovernmentPortal(getCurrentUser())) {
+          return 'gov-dashboard';
+        }
+        return 'gov-login';
+      }
+
+      // Private Officer route access
+      if (
+        path.includes('/officer') ||
+        path.includes('/officer-login') ||
+        path.includes('/officer-workspace') ||
+        hash.includes('officer') ||
+        search.includes('portal=officer')
+      ) {
+        if (canAccessOfficerPortal(getCurrentUser(), getActiveOfficer())) {
+          return 'officer-workspace';
+        }
+        return 'officer-login';
+      }
+
+      if (path.includes('/report') || hash.includes('report')) {
+        return 'citizen-report';
+      }
+      if (path.includes('/track') || hash.includes('track')) {
+        return 'citizen-track';
+      }
+      if (path.includes('/login') || hash.includes('login')) {
+        return 'citizen-login';
+      }
+    } catch (e) {
+      console.warn('URL route parsing error:', e);
+    }
+    return 'landing';
+  });
+
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
   const [reportAnalysisCase, setReportAnalysisCase] = useState<CivicCase | null>(null);
 
@@ -109,6 +162,32 @@ export function App() {
   }, []);
 
   const handleNavigate = (view: AppView) => {
+    // If trying to access government views without authorization, protect and redirect to login
+    const isTargetGov = [
+      'gov-dashboard',
+      'gov-live-cases',
+      'city-intelligence',
+      'ai-resolution-engine',
+      'departments',
+      'analytics',
+      'ap-projects',
+      'gov-projects',
+      'ap-gov-dashboard'
+    ].includes(view);
+
+    if (isTargetGov && !canAccessGovernmentPortal(getCurrentUser())) {
+      setCurrentView('gov-login');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
+    const isTargetOfficer = ['officer-workspace', 'ap-officer-dashboard'].includes(view);
+    if (isTargetOfficer && !canAccessOfficerPortal(getCurrentUser(), getActiveOfficer()) && !activeAPOfficer) {
+      setCurrentView('officer-login');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
     setCurrentView(view);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
