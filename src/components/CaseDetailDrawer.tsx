@@ -471,7 +471,7 @@ export const CaseDetailDrawer: React.FC<CaseDetailDrawerProps> = ({
                     ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
                     : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
                 }`}>
-                  {caseItem.status.replace(/_/g, ' ')}
+                  {(caseItem.status || 'NEW').replace(/_/g, ' ')}
                 </span>
                 {caseItem.problemDuration && (
                   <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700">

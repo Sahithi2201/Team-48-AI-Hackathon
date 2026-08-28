@@ -34,7 +34,7 @@ export const OfficerLoginPage: React.FC<OfficerLoginPageProps> = ({
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedOfficer, setSelectedOfficer] = useState<DepartmentOfficer>(allOfficers[0]);
   const [officerEmail, setOfficerEmail] = useState<string>(allOfficers[0]?.email || 'ravi.kumar@civicmind.gov.in');
-  const [officerPassword, setOfficerPassword] = useState<string>('2026');
+  const [officerPassword, setOfficerPassword] = useState<string>('');
   const [isVerifying, setIsVerifying] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -55,7 +55,7 @@ export const OfficerLoginPage: React.FC<OfficerLoginPageProps> = ({
   const handleSelectOfficer = (officer: DepartmentOfficer) => {
     setSelectedOfficer(officer);
     setOfficerEmail(officer.email || `${officer.name.toLowerCase().replace(/\s+/g, '.')}@civicmind.gov.in`);
-    setOfficerPassword('2026');
+    setOfficerPassword('');
     setErrorMsg(null);
   };
 
@@ -340,9 +340,6 @@ export const OfficerLoginPage: React.FC<OfficerLoginPageProps> = ({
                     <Lock className="w-3.5 h-3.5 text-slate-400" />
                     <span>Officer Password</span>
                   </label>
-                  <span className="text-[10px] text-blue-700 font-mono font-bold bg-blue-50 px-2 py-0.5 rounded">
-                    Default: 2026
-                  </span>
                 </div>
                 <input
                   type="password"
@@ -352,7 +349,7 @@ export const OfficerLoginPage: React.FC<OfficerLoginPageProps> = ({
                     setErrorMsg(null);
                   }}
                   className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-blue-600 focus:bg-white"
-                  placeholder="Enter officer password..."
+                  placeholder="Enter officer password or badge PIN..."
                 />
               </div>
 

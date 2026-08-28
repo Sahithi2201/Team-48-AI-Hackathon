@@ -239,7 +239,7 @@ export const TrackCasePage: React.FC<TrackCasePageProps> = ({
           <div className="space-y-6">
             
             {/* Urgent Action banner if Government requested additional information */}
-            {((activeCase.informationRequests || []).some(r => r.status === 'PENDING_CITIZEN_RESPONSE') || 
+            {((activeCase.informationRequests || []).some(r => r?.status === 'PENDING_CITIZEN_RESPONSE') || 
               (activeCase.currentAction || '').toLowerCase().includes('awaiting citizen')) && (
               <div className="p-4 rounded-2xl bg-amber-400 text-slate-950 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-md border border-amber-500 animate-in fade-in duration-200">
                 <div className="flex items-center gap-2.5">
@@ -640,8 +640,8 @@ export const TrackCasePage: React.FC<TrackCasePageProps> = ({
 
               <div className="relative pl-6 space-y-4 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-200">
                 {(activeCase.timeline || []).map((event, idx) => {
-                  const isDone = event.status === 'completed';
-                  const isCurrent = event.status === 'current';
+                  const isDone = event?.status === 'completed';
+                  const isCurrent = event?.status === 'current';
 
                   return (
                     <div key={event.id || idx} className="relative">

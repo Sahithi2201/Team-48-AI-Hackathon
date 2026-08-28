@@ -9,9 +9,15 @@ import {
   Activity, 
   X, 
   PlusCircle, 
-  ShieldCheck 
+  ShieldCheck,
+  HardHat,
+  Building2,
+  Menu,
+  Info,
+  HelpCircle
 } from 'lucide-react';
 import { AppView } from '../types';
+import { getCurrentUser, canAccessGovernmentPortal } from '../services/authService';
 import handComplaintStampBg from '../assets/images/complaint_hero_bg_1787391111476.jpg';
 
 interface LandingPageProps {
@@ -26,9 +32,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({
   onOpenTrack
 }) => {
   const [activeModal, setActiveModal] = useState<'about' | 'how-it-works' | null>(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
-    <div className="h-screen w-screen overflow-hidden text-[#0F172A] flex flex-col justify-between relative select-none">
+    <div className="min-h-screen w-full overflow-x-hidden text-[#0F172A] flex flex-col justify-between relative select-none">
       
       {/* Background Layer: Hand holding wooden COMPLAINT stamp photograph */}
       <div 
@@ -43,20 +50,20 @@ export const LandingPage: React.FC<LandingPageProps> = ({
       />
 
       {/* 1. TOP STICKY HEADER */}
-      <header className="w-full z-40 bg-white/90 backdrop-blur-md border-b border-slate-200/80 shrink-0">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <header className="w-full z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/80 shrink-0 sticky top-0">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           
           {/* Brand Logo + Name */}
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-cyan-500 flex items-center justify-center text-white shadow-md shadow-blue-500/20">
-              <Radio className="w-5 h-5" />
+          <div className="flex items-center gap-2.5 sm:gap-3">
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-cyan-500 flex items-center justify-center text-white shadow-md shadow-blue-500/20 shrink-0">
+              <Radio className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
             <div>
               <div className="flex items-center gap-1.5">
-                <span className="font-extrabold text-xl tracking-tight text-slate-900">
+                <span className="font-extrabold text-lg sm:text-xl tracking-tight text-slate-900">
                   CivicMind
                 </span>
-                <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+                <span className="px-1.5 sm:px-2 py-0.5 text-[9px] sm:text-[10px] font-bold rounded-full bg-blue-50 text-blue-700 border border-blue-200">
                   AI v2.4
                 </span>
               </div>
@@ -66,8 +73,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             </div>
           </div>
 
-          {/* Header Actions */}
-          <div className="flex items-center gap-2 sm:gap-3">
+          {/* Desktop Navigation */}
+          <div className="hidden md:flex items-center gap-2 sm:gap-3">
             <button
               onClick={() => setActiveModal('about')}
               className="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:text-blue-600 hover:bg-blue-50 transition-colors cursor-pointer"
@@ -88,13 +95,95 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               <Compass className="w-3.5 h-3.5 text-blue-600" />
               <span>Track Case</span>
             </button>
+
+            {/* Officer Portal Header Entry */}
+            <button
+              onClick={() => onNavigate('officer-login')}
+              className="px-3.5 py-1.5 rounded-lg text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 transition-colors cursor-pointer flex items-center gap-1.5"
+            >
+              <HardHat className="w-3.5 h-3.5 text-slate-700" />
+              <span>Officer Portal</span>
+            </button>
+          </div>
+
+          {/* Mobile Navigation Controls */}
+          <div className="flex md:hidden items-center gap-1.5 sm:gap-2">
+            {/* Quick direct Officer Portal button on Mobile */}
+            <button
+              onClick={() => onNavigate('officer-login')}
+              className="px-2.5 py-1.5 rounded-lg text-[11px] sm:text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 transition-colors cursor-pointer flex items-center gap-1"
+              title="Officer Portal"
+            >
+              <HardHat className="w-3.5 h-3.5 text-slate-700" />
+              <span>Officer Portal</span>
+            </button>
+
+            {/* Mobile Hamburger Menu Toggle */}
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="p-1.5 sm:p-2 rounded-lg text-slate-700 hover:text-slate-900 hover:bg-slate-100 border border-slate-200 transition-colors cursor-pointer"
+              aria-label="Toggle navigation menu"
+            >
+              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            </button>
           </div>
 
         </div>
+
+        {/* Mobile Dropdown Menu */}
+        {mobileMenuOpen && (
+          <div className="md:hidden border-t border-slate-200 bg-white/98 backdrop-blur-lg px-4 py-3 shadow-xl animate-in slide-in-from-top-2 duration-200">
+            <div className="flex flex-col space-y-2">
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  setActiveModal('about');
+                }}
+                className="w-full px-3.5 py-2.5 rounded-xl text-left text-xs font-semibold text-slate-700 hover:text-blue-600 hover:bg-blue-50 flex items-center gap-2.5 transition-colors cursor-pointer"
+              >
+                <Info className="w-4 h-4 text-blue-600" />
+                <span>About CivicMind</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  setActiveModal('how-it-works');
+                }}
+                className="w-full px-3.5 py-2.5 rounded-xl text-left text-xs font-semibold text-slate-700 hover:text-blue-600 hover:bg-blue-50 flex items-center gap-2.5 transition-colors cursor-pointer"
+              >
+                <HelpCircle className="w-4 h-4 text-cyan-600" />
+                <span>How It Works</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  onNavigate('citizen-track');
+                }}
+                className="w-full px-3.5 py-2.5 rounded-xl text-left text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 flex items-center gap-2.5 transition-colors cursor-pointer"
+              >
+                <Compass className="w-4 h-4 text-blue-600" />
+                <span>Track Case</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  onNavigate('officer-login');
+                }}
+                className="w-full px-3.5 py-2.5 rounded-xl text-left text-xs font-semibold text-slate-800 bg-slate-100 hover:bg-slate-200 border border-slate-300 flex items-center gap-2.5 transition-colors cursor-pointer"
+              >
+                <HardHat className="w-4 h-4 text-slate-700" />
+                <span>Officer Portal</span>
+              </button>
+            </div>
+          </div>
+        )}
       </header>
 
       {/* 2. CENTER HERO & PORTAL ENTRY */}
-      <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 lg:px-8 flex flex-col justify-center items-center text-center py-4 z-10">
+      <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 lg:px-8 flex flex-col justify-center items-center text-center py-6 sm:py-8 z-10">
         
         {/* Label Eyebrow */}
         <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-xs font-bold uppercase tracking-wider mb-2 sm:mb-3">
@@ -181,13 +270,19 @@ export const LandingPage: React.FC<LandingPageProps> = ({
 
       {/* 3. CLEAN BOTTOM MUNICIPAL BAR */}
       <footer className="w-full bg-white border-t border-slate-200 py-2.5 px-4 text-center shrink-0 z-40">
-        <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between text-[11px] text-slate-500 font-medium gap-2">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between text-[11px] text-slate-500 font-medium gap-2">
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
             <span>Autonomous Civic Intelligence Grid Active</span>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-4">
             <span>CivicMind Smart City Operations Framework • Confidential & Secure</span>
+            <button
+              onClick={() => onNavigate('gov-login')}
+              className="text-slate-400 hover:text-slate-700 text-[10px] underline underline-offset-2 transition-colors cursor-pointer"
+            >
+              Administrative Access
+            </button>
           </div>
         </div>
       </footer>

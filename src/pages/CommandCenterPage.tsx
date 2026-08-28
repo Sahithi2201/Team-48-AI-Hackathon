@@ -752,7 +752,7 @@ export const CommandCenterPage: React.FC<CommandCenterPageProps> = ({
                             {c.citizenName || 'Citizen'}
                           </td>
                           <td className="py-3.5 px-4 text-slate-600 whitespace-nowrap">
-                            {c.location.colony || c.location.area || 'Ward Area'}, {c.location.city || ''}
+                            {c.location?.colony || c.location?.area || 'Ward Area'}, {c.location?.city || ''}
                           </td>
                           <td className="py-3.5 px-4 whitespace-nowrap">
                             <span className={`px-2 py-0.5 rounded-full font-extrabold text-[10px] ${
@@ -762,7 +762,7 @@ export const CommandCenterPage: React.FC<CommandCenterPageProps> = ({
                               c.status === 'OFFICER_ASSIGNED' || c.status === 'WORK_ACCEPTED' ? 'bg-sky-100 text-sky-800' :
                               'bg-amber-100 text-amber-800'
                             }`}>
-                              {c.status.replace(/_/g, ' ')}
+                              {(c.status || 'NEW').replace(/_/g, ' ')}
                             </span>
                           </td>
                           <td className="py-3.5 px-4 whitespace-nowrap">
@@ -894,7 +894,7 @@ export const CommandCenterPage: React.FC<CommandCenterPageProps> = ({
                             c.assignedOfficerId ? 'bg-sky-100 text-sky-800 border border-sky-200' :
                             'bg-amber-100 text-amber-800 border border-amber-200'
                           }`}>
-                            {c.status.replace(/_/g, ' ')}
+                            {(c.status || 'NEW').replace(/_/g, ' ')}
                           </span>
                         </div>
                       </div>
@@ -1165,7 +1165,7 @@ export const CommandCenterPage: React.FC<CommandCenterPageProps> = ({
                                 ? 'bg-emerald-100 text-emerald-800'
                                 : 'bg-rose-100 text-rose-800'
                             }`}>
-                              {upd.government_review_status.replace(/_/g, ' ')}
+                              {(upd.government_review_status || 'PENDING').replace(/_/g, ' ')}
                             </span>
                           </div>
 
@@ -1310,7 +1310,7 @@ export const CommandCenterPage: React.FC<CommandCenterPageProps> = ({
                             c.status === 'BLOCKED / DELAYED' || c.status === 'BLOCKED' || c.isBlocked ? 'bg-rose-100 text-rose-800 border border-rose-200' :
                             'bg-sky-100 text-sky-800 border border-sky-200'
                           }`}>
-                            {c.status.replace(/_/g, ' ')}
+                            {(c.status || 'NEW').replace(/_/g, ' ')}
                           </span>
                         </div>
 
@@ -1407,7 +1407,7 @@ export const CommandCenterPage: React.FC<CommandCenterPageProps> = ({
                             {c.id}
                           </span>
                           <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full uppercase bg-emerald-100 text-emerald-800 border border-emerald-200">
-                            {c.status.replace(/_/g, ' ')}
+                            {(c.status || 'SOLVED').replace(/_/g, ' ')}
                           </span>
                         </div>
                         <h3 className="font-bold text-sm text-slate-900 line-clamp-2 mb-2 group-hover:text-emerald-700 transition-colors">
@@ -1420,7 +1420,7 @@ export const CommandCenterPage: React.FC<CommandCenterPageProps> = ({
                           </div>
                           <div className="flex items-center gap-1.5 text-slate-600">
                             <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                            <span className="truncate">{c.location.colony || c.location.area || 'Ward Area'}, {c.location.city || ''}</span>
+                            <span className="truncate">{c.location?.colony || c.location?.area || 'Ward Area'}, {c.location?.city || ''}</span>
                           </div>
                           {c.assignedOfficerName && (
                             <div className="text-xs text-emerald-800 font-semibold pt-1 border-t border-emerald-200/60 flex items-center justify-between">

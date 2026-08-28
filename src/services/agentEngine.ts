@@ -938,7 +938,7 @@ export function runEscalationAgent(input: {
   return {
     agentName: '07 Escalation Agent',
     agentRole: 'escalation_agent',
-    status: escalationStatus === 'NORMAL' ? 'completed' : 'escalated',
+    status: escalationStatus === 'NORMAL' ? 'completed' : 'human_review',
     decision: {
       escalationStatus,
       targetAuthority,
@@ -1137,7 +1137,7 @@ export async function executeSupervisorPipeline(
     summary: valRes.reason,
     confidence: valRes.confidence,
     decision: valRes.decision,
-    status: valRes.decision.status === 'VALID' ? 'SUCCESS' : 'FLAGGED_FOR_HUMAN'
+    status: valRes.decision?.status === 'VALID' ? 'SUCCESS' : 'FLAGGED_FOR_HUMAN'
   };
   auditLogs.push(valLog);
   await logAgentActivity(valLog);
@@ -1366,8 +1366,8 @@ export const executeAgentSwarmPipeline = executeSupervisorPipeline;
 export const runIntakeValidationAgent = (input: any) => {
   const res = runValidationAgent(input);
   return {
-    isValid: res.decision.isComplete,
-    status: res.decision.status as any,
+    isValid: res.decision?.isComplete ?? true,
+    status: (res.decision?.status || 'VALID') as any,
     reason: res.reason,
     extractedEntities: {
       category: input.category,

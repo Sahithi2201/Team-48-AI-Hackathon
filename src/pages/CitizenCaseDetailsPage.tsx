@@ -210,7 +210,7 @@ export const CitizenCaseDetailsPage: React.FC<CitizenCaseDetailsPageProps> = ({
     setInfoSubmitError(null);
 
     const citizenName = currentUser?.full_name || loadedCase.citizenName || 'Citizen';
-    const pendingReq = (loadedCase.informationRequests || []).slice().reverse().find(r => r.status === 'PENDING_CITIZEN_RESPONSE');
+    const pendingReq = (loadedCase.informationRequests || []).slice().reverse().find(r => r?.status === 'PENDING_CITIZEN_RESPONSE');
 
     try {
       await submitCitizenInfoResponseInDb(
@@ -428,13 +428,13 @@ export const CitizenCaseDetailsPage: React.FC<CitizenCaseDetailsPageProps> = ({
 
   // Information Request state checks
   const infoRequests = loadedCase.informationRequests || [];
-  const pendingRequest = infoRequests.slice().reverse().find(r => r.status === 'PENDING_CITIZEN_RESPONSE');
-  const hasTimelineRequest = (loadedCase.timeline || []).some(t => t.title.toLowerCase().includes('additional information requested'));
+  const pendingRequest = infoRequests.slice().reverse().find(r => r?.status === 'PENDING_CITIZEN_RESPONSE');
+  const hasTimelineRequest = (loadedCase.timeline || []).some(t => t?.title?.toLowerCase().includes('additional information requested'));
   const hasPendingAction = (loadedCase.currentAction || '').toLowerCase().includes('awaiting citizen') || (loadedCase.currentAction || '').toLowerCase().includes('clarification');
-  const hasPendingClarification = Boolean(pendingRequest) || ((hasTimelineRequest || hasPendingAction) && !infoSubmitSuccess && !infoRequests.some(r => r.status === 'RESPONSE_SUBMITTED'));
+  const hasPendingClarification = Boolean(pendingRequest) || ((hasTimelineRequest || hasPendingAction) && !infoSubmitSuccess && !infoRequests.some(r => r?.status === 'RESPONSE_SUBMITTED'));
   
   const latestRequestMessage = pendingRequest?.requestQuery 
-    || (loadedCase.timeline || []).find(t => t.title.toLowerCase().includes('additional information requested'))?.description 
+    || (loadedCase.timeline || []).find(t => t?.title?.toLowerCase().includes('additional information requested'))?.description 
     || 'Please provide more info.';
 
   const cleanRequestMessage = latestRequestMessage.includes('clarification: "')
@@ -443,7 +443,7 @@ export const CitizenCaseDetailsPage: React.FC<CitizenCaseDetailsPageProps> = ({
     ? latestRequestMessage.split('clarifications: "')[1]?.split('"')[0]
     : latestRequestMessage;
 
-  const submittedInfoRequests = infoRequests.filter(r => r.status === 'RESPONSE_SUBMITTED');
+  const submittedInfoRequests = infoRequests.filter(r => r?.status === 'RESPONSE_SUBMITTED');
 
   return (
     <div className="min-h-full py-6 px-4 sm:px-6 lg:px-8 text-[#0F172A] relative select-none">
@@ -1093,8 +1093,8 @@ export const CitizenCaseDetailsPage: React.FC<CitizenCaseDetailsPageProps> = ({
                     actor: 'CivicMind System'
                   }
                 ]).map((event, idx) => {
-                  const isDone = event.status === 'completed';
-                  const isCurrent = event.status === 'current';
+                  const isDone = event?.status === 'completed';
+                  const isCurrent = event?.status === 'current';
 
                   return (
                     <div key={event.id || idx} className="relative">

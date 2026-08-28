@@ -323,7 +323,7 @@ export const DepartmentsPage: React.FC<DepartmentsPageProps> = ({
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             {currentDept.officers.map((officer) => {
-              const isBusy = officer.status === 'Heavy Workload' || officer.status === 'Busy';
+              const isBusy = officer?.status === 'Heavy Workload' || officer?.status === 'Busy';
 
               return (
                 <div
@@ -341,7 +341,7 @@ export const DepartmentsPage: React.FC<DepartmentsPageProps> = ({
                     <span className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase ${
                       isBusy ? 'bg-amber-100 text-amber-800 border border-amber-200' : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
                     }`}>
-                      {officer.status}
+                      {officer?.status || 'Available'}
                     </span>
                   </div>
 

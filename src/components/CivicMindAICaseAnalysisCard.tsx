@@ -226,11 +226,11 @@ export const CivicMindAICaseAnalysisCard: React.FC<CivicMindAICaseAnalysisCardPr
               {analysis.urgency} Urgency
             </span>
             <span className="text-[10px] text-slate-400 font-mono">
-              {analysis.slaPrediction.estimatedHoursRemaining}h remaining
+              {analysis.slaPrediction?.estimatedHoursRemaining ?? 36}h remaining
             </span>
           </div>
           <p className="text-[11px] text-slate-300 leading-snug mt-1">
-            {analysis.slaPrediction.delayRiskReason}
+            {analysis.slaPrediction?.delayRiskReason || 'On track within standard municipal turnaround time.'}
           </p>
         </div>
 

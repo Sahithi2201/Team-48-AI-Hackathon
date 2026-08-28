@@ -29,8 +29,13 @@ export const IncidentCard: React.FC<IncidentCardProps> = ({
   onEscalate,
   isSelected = false
 }) => {
+  if (!caseItem) return null;
+
   const ops = getIncidentOperationalSummary(caseItem);
   const { severity, plainStatus, progressPercent, currentStageName, currentAction, nextAction, slaFormatted, slaIsUrgent } = ops;
+
+  const ward = caseItem.location?.ward || 'Ward Zone';
+  const address = caseItem.location?.address || caseItem.location?.colony || caseItem.location?.area || 'Municipal Area';
 
   return (
     <div 
@@ -82,7 +87,7 @@ export const IncidentCard: React.FC<IncidentCardProps> = ({
           
           <div className="flex items-center gap-1.5 mt-1 text-xs text-slate-500 font-medium">
             <Compass className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-            <span className="truncate">{caseItem.location.ward} · {caseItem.location.address}</span>
+            <span className="truncate">{ward} · {address}</span>
           </div>
         </div>
 

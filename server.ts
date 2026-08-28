@@ -92,23 +92,58 @@ Return a valid JSON object ONLY with this exact JSON structure:
   }
 }`;
 
-      const response = await ai.models.generateContent({
-        model: 'gemini-3.7-flash',
-        contents: prompt,
-        config: {
-          responseMimeType: 'application/json'
-        }
-      });
+      let text = '';
+      let modelUsed = 'gemini-2.5-flash (Server-Side)';
 
-      const text = response.text || '';
-      const parsed = JSON.parse(text);
+      try {
+        const response = await ai.models.generateContent({
+          model: 'gemini-2.5-flash',
+          contents: prompt,
+          config: {
+            responseMimeType: 'application/json'
+          }
+        });
+        text = response.text || '';
+      } catch (geminiErr: any) {
+        // If 503/high-demand on primary model, fallback to gemini-2.5-pro or return deterministic fallback
+        console.warn('[Server AI] Primary model notice, trying fallback:', geminiErr?.message || geminiErr);
+        try {
+          const fallbackResponse = await ai.models.generateContent({
+            model: 'gemini-2.5-pro',
+            contents: prompt,
+            config: {
+              responseMimeType: 'application/json'
+            }
+          });
+          text = fallbackResponse.text || '';
+          modelUsed = 'gemini-2.5-pro (Server-Side Fallback)';
+        } catch (fbErr: any) {
+          console.warn('[Server AI] Fallback model notice:', fbErr?.message || fbErr);
+          return res.status(200).json({
+            success: false,
+            useFallback: true,
+            error: fbErr?.message || 'Model temporarily unavailable'
+          });
+        }
+      }
+
+      let parsed: any = {};
+      try {
+        parsed = JSON.parse(text);
+      } catch (pErr) {
+        return res.status(200).json({
+          success: false,
+          useFallback: true,
+          error: 'Invalid JSON response from AI'
+        });
+      }
 
       return res.json({
         success: true,
         analysis: {
           ...parsed,
           analyzedAt: new Date().toISOString(),
-          modelUsed: 'gemini-3.7-flash (Server-Side)'
+          modelUsed
         }
       });
     } catch (err: any) {
@@ -145,14 +180,31 @@ ${casesSummary || 'Standard municipal incident records.'}
 
 Provide a concise, professional, and actionable civic operational recommendation.`;
 
-      const response = await ai.models.generateContent({
-        model: 'gemini-3.7-flash',
-        contents: prompt
-      });
+      let answer = '';
+      try {
+        const response = await ai.models.generateContent({
+          model: 'gemini-2.5-flash',
+          contents: prompt
+        });
+        answer = response.text || '';
+      } catch (geminiErr) {
+        try {
+          const fallbackResponse = await ai.models.generateContent({
+            model: 'gemini-2.5-pro',
+            contents: prompt
+          });
+          answer = fallbackResponse.text || '';
+        } catch (fbErr) {
+          return res.status(200).json({
+            success: false,
+            answer: 'CivicMind municipal advisor service is currently utilizing real-time local telemetry.'
+          });
+        }
+      }
 
       return res.json({
         success: true,
-        answer: response.text || ''
+        answer
       });
     } catch (err: any) {
       console.warn('[Server AI] Ask CivicMind notice:', err?.message || err);

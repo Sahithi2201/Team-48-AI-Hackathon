@@ -107,14 +107,16 @@ export const OfficerWorkspacePage: React.FC<OfficerWorkspacePageProps> = ({
   // Filtered by sub-tab
   const filteredAssignedCases = useMemo(() => {
     return assignedCases.filter(c => {
+      if (!c) return false;
+      const s = c.status || '';
       if (statusFilter === 'PENDING') {
-        return c.status === 'IN_PROGRESS' || c.status === 'OFFICER ASSIGNED' || c.status === 'BLOCKED / DELAYED';
+        return s === 'IN_PROGRESS' || s === 'OFFICER ASSIGNED' || s === 'OFFICER_ASSIGNED' || s === 'BLOCKED / DELAYED';
       }
       if (statusFilter === 'WAITING_VERIFY') {
-        return c.status === 'AWAITING GOVERNMENT VERIFICATION' || c.status === 'AWAITING_VERIFICATION';
+        return s === 'AWAITING GOVERNMENT VERIFICATION' || s === 'AWAITING_VERIFICATION';
       }
       if (statusFilter === 'SOLVED') {
-        return c.status === 'SOLVED';
+        return s === 'SOLVED' || s === 'RESOLVED' || s === 'CLOSED';
       }
       return true;
     });
@@ -400,7 +402,7 @@ export const OfficerWorkspacePage: React.FC<OfficerWorkspacePageProps> = ({
             <div>
               <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Ongoing</p>
               <p className="text-xl font-black text-amber-700 leading-tight">
-                {assignedCases.filter(c => c.status === 'IN_PROGRESS' || c.status === 'WORK_ACCEPTED' || c.status === 'BLOCKED / DELAYED').length}
+                {assignedCases.filter(c => c?.status === 'IN_PROGRESS' || c?.status === 'WORK_ACCEPTED' || c?.status === 'BLOCKED / DELAYED').length}
               </p>
             </div>
           </div>
@@ -413,7 +415,7 @@ export const OfficerWorkspacePage: React.FC<OfficerWorkspacePageProps> = ({
             <div>
               <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Pending Action</p>
               <p className="text-xl font-black text-indigo-700 leading-tight">
-                {assignedCases.filter(c => c.status === 'OFFICER ASSIGNED' || c.status === 'OFFICER_ASSIGNED' || !c.progress || c.progress === 0).length}
+                {assignedCases.filter(c => c?.status === 'OFFICER ASSIGNED' || c?.status === 'OFFICER_ASSIGNED' || !c?.progress || c?.progress === 0).length}
               </p>
             </div>
           </div>
@@ -426,7 +428,7 @@ export const OfficerWorkspacePage: React.FC<OfficerWorkspacePageProps> = ({
             <div>
               <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Processed / Review</p>
               <p className="text-xl font-black text-purple-700 leading-tight">
-                {assignedCases.filter(c => c.status === 'AWAITING GOVERNMENT VERIFICATION' || c.status === 'AWAITING_VERIFICATION' || c.status === 'UNDER_REVIEW').length}
+                {assignedCases.filter(c => c?.status === 'AWAITING GOVERNMENT VERIFICATION' || c?.status === 'AWAITING_VERIFICATION' || c?.status === 'UNDER_REVIEW').length}
               </p>
             </div>
           </div>
@@ -439,7 +441,7 @@ export const OfficerWorkspacePage: React.FC<OfficerWorkspacePageProps> = ({
             <div>
               <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Solved Projects</p>
               <p className="text-xl font-black text-emerald-700 leading-tight">
-                {assignedCases.filter(c => c.status === 'SOLVED').length}
+                {assignedCases.filter(c => c?.status === 'SOLVED' || c?.status === 'RESOLVED' || c?.status === 'CLOSED').length}
               </p>
             </div>
           </div>

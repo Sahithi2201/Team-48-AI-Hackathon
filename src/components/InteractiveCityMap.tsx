@@ -452,13 +452,13 @@ export const InteractiveCityMap: React.FC<InteractiveCityMapProps> = ({
             <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
               hoveredCase.priority === 'P1' ? 'bg-rose-100 text-rose-700 border border-rose-200' : 'bg-amber-100 text-amber-800'
             }`}>
-              {hoveredCase.priority} • {hoveredCase.status}
+              {hoveredCase.priority || 'P3'} • {hoveredCase.status || 'SUBMITTED'}
             </span>
           </div>
-          <h4 className="text-xs font-bold text-slate-900 mt-1.5 line-clamp-1">{hoveredCase.title}</h4>
+          <h4 className="text-xs font-bold text-slate-900 mt-1.5 line-clamp-1">{hoveredCase.title || 'Civic Incident'}</h4>
           <p className="text-[10px] text-slate-500 mt-0.5 flex items-center gap-1 font-medium">
             <Navigation2 className="w-2.5 h-2.5 text-blue-600" />
-            {hoveredCase.location.address}
+            {hoveredCase.location?.address || hoveredCase.location?.area || 'Municipal Ward'}
           </p>
           <div className="mt-2 flex items-center justify-between text-[10px] text-slate-500 pt-1.5 border-t border-slate-100 font-medium">
             <span>AI Conf: <strong className="text-slate-900">{hoveredCase.aiConfidence}%</strong></span>

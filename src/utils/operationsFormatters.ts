@@ -139,7 +139,33 @@ export function getSeverityInfo(
 /**
  * Derives clear operations progress and human-readable next actions
  */
-export function getIncidentOperationalSummary(caseItem: CivicCase): IncidentOperationalSummary {
+export function getIncidentOperationalSummary(caseItem: CivicCase | undefined | null): IncidentOperationalSummary {
+  if (!caseItem) {
+    const defaultSeverity = getSeverityInfo('P3', false, 'MEDIUM');
+    const defaultStages: LifecycleStage[] = [
+      { id: 's1', name: 'Citizen Submission', status: 'completed', actor: 'Citizen' },
+      { id: 's2', name: 'AI Triage & Analysis', status: 'current', actor: 'CivicMind AI Swarm' },
+      { id: 's3', name: 'Government Acceptance', status: 'pending', actor: 'Government Command Desk' },
+      { id: 's4', name: 'Officer Assigned', status: 'pending', actor: 'Department Dispatch' },
+      { id: 's5', name: 'Field Work In Progress', status: 'pending', actor: 'Field Squad' },
+      { id: 's6', name: 'Work Completed Review', status: 'pending', actor: 'Government Verification Desk' },
+      { id: 's7', name: 'Verified & Resolved', status: 'pending', actor: 'Municipal Operations' }
+    ];
+    return {
+      severity: defaultSeverity,
+      plainStatus: 'Submitted — Processing',
+      progressPercent: 10,
+      currentStageName: 'Intake Processing',
+      currentAction: 'Incident data being registered into municipal registry.',
+      nextAction: 'AI triage analysis and officer routing.',
+      slaFormatted: '48h remaining',
+      slaIsUrgent: false,
+      lifecycleStages: defaultStages,
+      aiSummaryBrief: 'Municipal complaint undergoing automated assessment.',
+      aiClassificationReason: 'Awaiting initial complaint submission parameters.'
+    };
+  }
+
   const severity = getSeverityInfo(caseItem.priority, caseItem.isEscalated, caseItem.finalGovernmentRisk);
 
   let plainStatus = 'Submitted';

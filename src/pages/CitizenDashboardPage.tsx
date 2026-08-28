@@ -105,7 +105,7 @@ export const CitizenDashboardPage: React.FC<CitizenDashboardPageProps> = ({
     const matchesSearch = 
       (c.title || '').toLowerCase().includes(sTerm) || 
       (c.id || '').toLowerCase().includes(sTerm) ||
-      (c.location.address || '').toLowerCase().includes(sTerm) ||
+      (c.location?.address || c.location?.area || c.location?.colony || '').toLowerCase().includes(sTerm) ||
       (c.category || '').toLowerCase().includes(sTerm);
     
     let matchesStatus = true;
@@ -336,7 +336,7 @@ export const CitizenDashboardPage: React.FC<CitizenDashboardPageProps> = ({
                       </div>
 
                       <div className="flex flex-col items-end gap-1.5">
-                        {((caseItem.informationRequests || []).some(r => r.status === 'PENDING_CITIZEN_RESPONSE') ||
+                        {((caseItem.informationRequests || []).some(r => r?.status === 'PENDING_CITIZEN_RESPONSE') ||
                           (caseItem.currentAction || '').toLowerCase().includes('awaiting citizen')) && (
                           <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-400 text-slate-950 border border-amber-500 shadow-2xs animate-pulse">
                             ⚠ Info Requested

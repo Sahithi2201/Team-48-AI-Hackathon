@@ -29,24 +29,79 @@ import {
 } from 'lucide-react';
 
 interface CaseIntelligencePageProps {
-  caseItem: CivicCase;
-  onBack: () => void;
-  onSelectCaseById: (caseId: string) => void;
-  onEscalateCase: (caseId: string, reason?: string, notes?: string) => void;
-  onResolveCase: (caseId: string) => void;
+  caseItem?: CivicCase | null;
+  cases?: CivicCase[];
+  onBack?: () => void;
+  onSelectCaseById?: (caseId: string) => void;
+  onSelectCase?: (caseId: string) => void;
+  onEscalateCase?: (caseId: string, reason?: string, notes?: string) => void;
+  onResolveCase?: (caseId: string) => void;
 }
 
 export const CaseIntelligencePage: React.FC<CaseIntelligencePageProps> = ({
-  caseItem,
-  onBack,
+  caseItem: initialCaseItem,
+  cases = [],
+  onBack = () => window.history.back(),
   onSelectCaseById,
+  onSelectCase,
   onEscalateCase,
   onResolveCase
 }) => {
+  const [selectedCaseStateId, setSelectedCaseStateId] = useState<string | null>(null);
+
+  // Derive active caseItem safely
+  const caseItem: CivicCase | null = initialCaseItem 
+    || (selectedCaseStateId ? cases.find(c => c.id === selectedCaseStateId) : null)
+    || (cases.length > 0 ? cases[0] : null);
+
   const [isDecisionExpanded, setIsDecisionExpanded] = useState(true);
   const [newLogNote, setNewLogNote] = useState('');
-  const [timelineEvents, setTimelineEvents] = useState(caseItem.timeline);
+  const [timelineEvents, setTimelineEvents] = useState(caseItem?.timeline || []);
   const [isEscalateModalOpen, setIsEscalateModalOpen] = useState(false);
+
+  // Sync timeline when caseItem changes
+  React.useEffect(() => {
+    if (caseItem?.timeline) {
+      setTimelineEvents(caseItem.timeline);
+    }
+  }, [caseItem?.id]);
+
+  const handleCaseSelection = (id: string) => {
+    setSelectedCaseStateId(id);
+    if (onSelectCaseById) onSelectCaseById(id);
+    if (onSelectCase) onSelectCase(id);
+  };
+
+  if (!caseItem) {
+    return (
+      <div className="min-h-full bg-[#F8FAFC] text-[#0F172A] p-6 flex flex-col items-center justify-center space-y-4">
+        <ShieldCheck className="w-12 h-12 text-blue-600 animate-pulse" />
+        <h2 className="text-xl font-bold text-slate-800">No Incident Selected</h2>
+        <p className="text-sm text-slate-500 max-w-md text-center">
+          Please select an incident ticket from the Municipal Operations list to view full multi-agent intelligence analysis.
+        </p>
+        {cases.length > 0 && (
+          <div className="flex flex-wrap gap-2 justify-center max-w-lg mt-2">
+            {cases.slice(0, 5).map(c => (
+              <button
+                key={c.id}
+                onClick={() => handleCaseSelection(c.id)}
+                className="px-3 py-1.5 rounded-xl bg-white border border-slate-300 hover:border-blue-500 text-xs font-mono font-bold text-blue-700 shadow-2xs"
+              >
+                {c.id} - {c.title.slice(0, 20)}...
+              </button>
+            ))}
+          </div>
+        )}
+        <button
+          onClick={onBack}
+          className="mt-4 px-4 py-2 rounded-xl bg-blue-600 text-white text-xs font-bold shadow-sm hover:bg-blue-700 transition-colors"
+        >
+          ← Return to Dashboard
+        </button>
+      </div>
+    );
+  }
 
   const ops = getIncidentOperationalSummary(caseItem);
   const { severity, plainStatus, progressPercent, currentStageName, currentAction, nextAction, slaFormatted, slaIsUrgent, lifecycleStages } = ops;
@@ -69,9 +124,11 @@ export const CaseIntelligencePage: React.FC<CaseIntelligencePageProps> = ({
   };
 
   const handleConfirmEscalation = (caseId: string, reason: string, notes: string) => {
-    onEscalateCase(caseId, reason, notes);
+    onEscalateCase?.(caseId, reason, notes);
     setIsEscalateModalOpen(false);
   };
+
+  const isCaseResolved = (caseItem.status as string) === 'Resolved' || caseItem.status === 'RESOLVED' || caseItem.status === 'SOLVED';
 
   return (
     <div className="min-h-full bg-[#F8FAFC] text-[#0F172A] p-4 sm:p-6 lg:p-8 space-y-6">
@@ -101,7 +158,7 @@ export const CaseIntelligencePage: React.FC<CaseIntelligencePageProps> = ({
               </span>
 
               <span className={`text-xs font-bold px-3 py-1 rounded-xl ${
-                caseItem.status === 'Resolved'
+                isCaseResolved
                   ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                   : 'bg-blue-50 text-blue-700 border border-blue-200'
               }`}>
@@ -130,7 +187,7 @@ export const CaseIntelligencePage: React.FC<CaseIntelligencePageProps> = ({
               <span>Export Dossier</span>
             </button>
 
-            {caseItem.status !== 'Resolved' && (
+            {!isCaseResolved && (
               <>
                 <button
                   onClick={() => setIsEscalateModalOpen(true)}
@@ -140,7 +197,7 @@ export const CaseIntelligencePage: React.FC<CaseIntelligencePageProps> = ({
                   <span>Escalate Case</span>
                 </button>
                 <button
-                  onClick={() => onResolveCase(caseItem.id)}
+                  onClick={() => onResolveCase?.(caseItem.id)}
                   className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md transition-all cursor-pointer flex items-center gap-1.5"
                 >
                   <CheckCircle2 className="w-3.5 h-3.5" />
@@ -171,7 +228,7 @@ export const CaseIntelligencePage: React.FC<CaseIntelligencePageProps> = ({
           <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
             <div 
               className={`h-full rounded-full transition-all duration-500 ${
-                caseItem.status === 'Resolved' ? 'bg-emerald-500' : 'bg-blue-600'
+                isCaseResolved ? 'bg-emerald-500' : 'bg-blue-600'
               }`}
               style={{ width: `${progressPercent}%` }}
             />
@@ -270,7 +327,7 @@ export const CaseIntelligencePage: React.FC<CaseIntelligencePageProps> = ({
               </div>
 
               {/* Resolved Photo if Available */}
-              {caseItem.status === 'Resolved' && caseItem.resolvedImageUrl && (
+              {isCaseResolved && caseItem.resolvedImageUrl && (
                 <div className="relative rounded-2xl overflow-hidden bg-slate-100 border border-emerald-300 aspect-video mt-3">
                   <img
                     src={caseItem.resolvedImageUrl}
@@ -481,7 +538,7 @@ export const CaseIntelligencePage: React.FC<CaseIntelligencePageProps> = ({
                   caseItem.relatedCases.map((rc) => (
                     <div
                       key={rc.id}
-                      onClick={() => onSelectCaseById(rc.id)}
+                      onClick={() => handleCaseSelection(rc.id)}
                       className="p-3 rounded-2xl bg-slate-50 hover:bg-blue-50/60 border border-slate-200 hover:border-blue-300 transition-all cursor-pointer space-y-1 group"
                     >
                       <div className="flex items-center justify-between text-xs">
@@ -497,7 +554,7 @@ export const CaseIntelligencePage: React.FC<CaseIntelligencePageProps> = ({
                       </div>
                       <div className="flex items-center justify-between text-[10px] text-slate-500 pt-1">
                         <span>{rc.distanceMeters} meters away</span>
-                        <span className="text-amber-700 font-bold">{rc.status}</span>
+                        <span className="text-amber-700 font-bold">{rc.status || 'ACTIVE'}</span>
                       </div>
                     </div>
                   ))
