@@ -256,6 +256,19 @@ export function isCitySupported(cityName?: string, formattedAddress?: string, la
   return result.isSupported;
 }
 
+export const distinctCitiesConflictMap: Record<string, string[]> = {
+  vijayawada: ['guntur', 'khammam', 'kothagudem', 'rajamahendravaram', 'tenali', 'bapatla', 'chirala', 'bhimavaram', 'aswaraopeta', 'hyderabad', 'visakhapatnam'],
+  guntur: ['vijayawada', 'khammam', 'kothagudem', 'rajamahendravaram', 'tenali', 'bapatla', 'chirala', 'bhimavaram', 'aswaraopeta', 'hyderabad', 'visakhapatnam'],
+  khammam: ['vijayawada', 'guntur', 'kothagudem', 'rajamahendravaram', 'tenali', 'bapatla', 'chirala', 'bhimavaram', 'aswaraopeta', 'hyderabad'],
+  kothagudem: ['vijayawada', 'guntur', 'khammam', 'rajamahendravaram', 'tenali', 'bapatla', 'chirala', 'bhimavaram', 'aswaraopeta', 'hyderabad'],
+  rajamahendravaram: ['vijayawada', 'guntur', 'khammam', 'kothagudem', 'tenali', 'bapatla', 'chirala', 'bhimavaram', 'aswaraopeta'],
+  tenali: ['vijayawada', 'guntur', 'khammam', 'kothagudem', 'rajamahendravaram', 'bapatla', 'chirala', 'bhimavaram'],
+  bapatla: ['vijayawada', 'guntur', 'khammam', 'kothagudem', 'rajamahendravaram', 'tenali', 'chirala', 'bhimavaram'],
+  chirala: ['vijayawada', 'guntur', 'khammam', 'kothagudem', 'rajamahendravaram', 'tenali', 'bapatla', 'bhimavaram'],
+  bhimavaram: ['vijayawada', 'guntur', 'khammam', 'kothagudem', 'rajamahendravaram', 'tenali', 'bapatla', 'chirala'],
+  aswaraopeta: ['vijayawada', 'guntur', 'khammam', 'kothagudem', 'rajamahendravaram', 'tenali', 'bapatla', 'chirala', 'bhimavaram'],
+};
+
 /**
  * 5. AREA & GOOGLE MAP LOCATION CONSISTENCY CHECK
  * Compares user-entered text (city, area, colony, district) with the selected map coordinates and geocoded address,

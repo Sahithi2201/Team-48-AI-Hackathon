@@ -252,7 +252,7 @@ export interface CivicCase {
   citizenEmail?: string;
   emailVerified?: boolean;
   phoneVerified?: boolean;
-  locationValidationStatus?: 'LOCATION_VALID' | 'LOCATION_MISMATCH' | 'LOCATION_CONFLICT';
+  locationValidationStatus?: 'LOCATION_VALID' | 'LOCATION_MISMATCH' | 'LOCATION_CONFLICT' | 'OUTSIDE_SERVICE_AREA';
   locationConflictReason?: string;
   
   // Assignment & Officer Tracking

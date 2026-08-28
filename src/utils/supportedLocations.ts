@@ -169,6 +169,19 @@ export const SUPPORTED_LOCATION_NAMES = SUPPORTED_CIVIC_LOCATIONS.map(l => l.nam
 export const SUPPORTED_LOCATIONS_SUMMARY = 
   'Vijayawada, Guntur, Khammam, Kothagudem, Rajamahendravaram, Tenali, Bapatla, Chirala, Bhimavaram, and Aswaraopeta';
 
+export const distinctCitiesConflictMap: Record<string, string[]> = {
+  vijayawada: ['guntur', 'khammam', 'kothagudem', 'rajamahendravaram', 'tenali', 'bapatla', 'chirala', 'bhimavaram', 'aswaraopeta', 'hyderabad', 'visakhapatnam'],
+  guntur: ['vijayawada', 'khammam', 'kothagudem', 'rajamahendravaram', 'tenali', 'bapatla', 'chirala', 'bhimavaram', 'aswaraopeta', 'hyderabad', 'visakhapatnam'],
+  khammam: ['vijayawada', 'guntur', 'kothagudem', 'rajamahendravaram', 'tenali', 'bapatla', 'chirala', 'bhimavaram', 'aswaraopeta', 'hyderabad'],
+  kothagudem: ['vijayawada', 'guntur', 'khammam', 'rajamahendravaram', 'tenali', 'bapatla', 'chirala', 'bhimavaram', 'aswaraopeta', 'hyderabad'],
+  rajamahendravaram: ['vijayawada', 'guntur', 'khammam', 'kothagudem', 'tenali', 'bapatla', 'chirala', 'bhimavaram', 'aswaraopeta'],
+  tenali: ['vijayawada', 'guntur', 'khammam', 'kothagudem', 'rajamahendravaram', 'bapatla', 'chirala', 'bhimavaram'],
+  bapatla: ['vijayawada', 'guntur', 'khammam', 'kothagudem', 'rajamahendravaram', 'tenali', 'chirala', 'bhimavaram'],
+  chirala: ['vijayawada', 'guntur', 'khammam', 'kothagudem', 'rajamahendravaram', 'tenali', 'bapatla', 'bhimavaram'],
+  bhimavaram: ['vijayawada', 'guntur', 'khammam', 'kothagudem', 'rajamahendravaram', 'tenali', 'bapatla', 'chirala'],
+  aswaraopeta: ['vijayawada', 'guntur', 'khammam', 'kothagudem', 'rajamahendravaram', 'tenali', 'bapatla', 'chirala', 'bhimavaram'],
+};
+
 /**
  * Calculates Great-circle distance between two coordinate pairs using Haversine formula in KM.
  */
