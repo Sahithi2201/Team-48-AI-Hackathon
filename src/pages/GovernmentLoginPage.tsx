@@ -26,8 +26,8 @@ export const GovernmentLoginPage: React.FC<GovernmentLoginPageProps> = ({
   onNavigate,
   onLoginSuccess
 }) => {
-  const [govId, setGovId] = useState('anita.verma@municipal.gov.in');
-  const [password, setPassword] = useState('2026');
+  const [govId, setGovId] = useState('vu.241fa04491@gmail.com');
+  const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 

@@ -93,27 +93,27 @@ export const DEFAULT_OWNER: UserProfile = {
 
 export const DEFAULT_GOV_ADMIN: UserProfile = {
   id: 'GOV-ADMIN-01',
-  full_name: 'Officer Anita Verma',
-  username: 'AnitaVerma',
-  phone: '+91 94450 11223',
-  email: 'anita.verma@municipal.gov.in',
+  full_name: 'K. Sahithi',
+  username: 'Sahithi',
+  phone: '+91 81213 12412',
+  email: 'vu.241fa04491@gmail.com',
   role: 'GOVERNMENT_ADMIN',
   department: 'General Municipal Administration',
   emailVerified: true,
   phoneVerified: true,
-  created_at: '2025-11-01T09:00:00Z'
+  created_at: '2025-01-01T00:00:00Z'
 };
 
 export const AUTHORIZED_GOV_ADMINS = [
   {
-    id: 'GOV-ADMIN-OWNER',
+    id: 'GOV-ADMIN-01',
     full_name: 'K. Sahithi',
     username: 'Sahithi',
     email: 'vu.241fa04491@gmail.com',
     phone: '+91 81213 12412',
-    role: 'OWNER' as UserRole,
+    role: 'GOVERNMENT_ADMIN' as UserRole,
     department: 'General Municipal Administration' as DepartmentName,
-    passwords: ['2026', 'admin2026', 'sahithi2026', 'admin', 'password123', 'passcode2026']
+    passwords: ['sahithi@2201', '2026', 'admin2026', 'sahithi2026', 'admin', 'password123', 'passcode2026']
   },
   {
     id: 'OWNER-01',
